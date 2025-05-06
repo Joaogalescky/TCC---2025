@@ -2,32 +2,34 @@
 
 Repositório para o Trabalho de Conclusão de Curso (TCC) - 3° TADS - Tecnólogo em Análise e Desenvolvimento de Sistemas | 2025.
 
+**Aluno:** João Vitor Campõe Galescky.
+**Orientado:** Edmar André Bellorini.
+**Co-orientador:** Darlon Vasata.
+
 ## Tema
-### CRIPTOGRAFIA HOMOMÓRFICA APLICADA EM UM SISTEMA DE ELEIÇÃO PARA DISPOSITIVOS MÓVEIS
+Criptografia Homomórfica aplicada em um sistema de eleição para dispositivos móveis.
 
 ## Tecnologias
 ### Framework
-- Svelte
+- Svelte.
 
 ### Linguagens
-- JavaScript
-- Python
-- SQL
+- JavaScript;
+- Python;
+- SQL.
 
 ### Bibliotecas
-- Pyfhel
+- Pyfhel.
 
 ### Ferramentas
-- MySQL Workbench
-- Visual Studio Code (VSC)
+- MySQL Workbench;
+- Visual Studio Code (VSC).
 
 ### Esquema Criptografico
-- Brakerski-Fan-Vercauteren (BFV)
+- Brakerski-Fan-Vercauteren (BFV).
 
 ## IFPR
 
 [![IFPR Logo](https://user-images.githubusercontent.com/126702799/234438114-4db30796-20ad-4bec-b118-246ebbe9de63.png)](https://user-images.githubusercontent.com/126702799/234438114-4db30796-20ad-4bec-b118-246ebbe9de63.png)
-
-**By João Vitor Campõe Galescky**
 
 Written with  [StackEdit](https://stackedit.io/).
