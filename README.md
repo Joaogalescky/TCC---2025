@@ -10,9 +10,9 @@ Repositório para o Trabalho de Conclusão de Curso (TCC) do curso de Tecnologia
 
 ## Tema
 
-**Criptografia Homomórfica Aplicada em um Sistema de Eleição para Dispositivos Móveis**
+**Criptografia Homomórfica Aplicada em um Sistema de Eleição**
 
-Este projeto propõe a implementação de um sistema de eleição eletrônico que utiliza criptografia homomórfica para garantir a privacidade e a segurança dos votos, mesmo durante o processamento. A aplicação será projetada inicialmente para dispositivos móveis, com possibilidade de adaptação posterior para _web_.
+Este projeto propõe a implementação de um sistema de eleição eletrônico que utiliza criptografia homomórfica para garantir a privacidade e a segurança dos votos, mesmo durante o processamento.
 
 ---
 
@@ -22,9 +22,9 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 
 ### Objetivos Específicos
 - Avaliar a viabilidade da aplicação da criptografia totalmente homomórfica (FHE) em sistemas de eleição;
-- Desenvolver um protótipo funcional de uma aplicação de eleição segura utilizando _Svelte_ no frontend e _FastAPI_ no _backend_;
-- Utilizar o esquema de criptografia BFV (Brakerski/Fan-Vercauteren) com a biblioteca _Pyfhel_;
-- Armazenar votos criptografados em banco de dados relacional (_MySQL_);
+- Desenvolver um protótipo funcional de uma aplicação de eleição;
+- Utilizar o esquema de criptografia BFV (Brakerski/Fan-Vercauteren);
+- Armazenar votos criptografados em banco de dados relacional;
 - Garantir segurança, confidencialidade, integridade e anonimato durante o processo de eleição.
 
 ---
@@ -32,24 +32,24 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 ## Tecnologias Utilizadas
 
 ### Frameworks
-- [Svelte](https://svelte.dev) – Interface da aplicação para dispositivos móveis e web;
-- [FastAPI](https://fastapi.tiangolo.com) – Backend em _Python_ para integração com a biblioteca de criptografia.
+- [Svelte](https://svelte.dev) – Interface da aplicação;
+- [FastAPI](https://fastapi.tiangolo.com) – Back-end.
 
 ### Linguagens
-- _JavaScript_ (_frontend_);
-- _Python_ (_backend_);
-- _SQL_ (banco de dados).
+- JavaScript;
+- Typescript;
+- Python;
+- SQL.
 
 ### Bibliotecas e Dependências
-- [Pyfhel](https://github.com/ibarrond/Pyfhel) – Biblioteca de criptografia homomórfica baseada em BFV.
+- [OpenFhe](https://openfhe.org/) – Biblioteca de criptografia homomórfica baseada no esquema BFV.
 
 ### Banco de Dados
-- [MySQL](https://www.mysql.com) – Armazenamento dos votos criptografados e dados auxiliares.
+- [MySQL](https://www.mysql.com)
 
 ---
 
 ## Ferramentas de Desenvolvimento
-
 - [Visual Studio Code](https://code.visualstudio.com) – Editor de código-fonte;
 - [MySQL Workbench](https://www.mysql.com/products/workbench) – Modelagem e administração do banco de dados;
 - [Figma](https://www.figma.com) – Protótipos de interface e fluxo de navegação;
@@ -59,7 +59,7 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 
 ## Esquema Criptográfico
 
-- **BFV (Brakerski-Fan-Vercauteren):** Esquema de criptografia homomórfica que permite operações de adição e multiplicação sobre dados criptografados, ideal para contagem de votos de forma segura e privada.
+- **BFV (Brakerski-Fan-Vercauteren):** Esquema de criptografia homomórfica que permite operações de adição e multiplicação sobre dados criptografados.
 
 ---
 
