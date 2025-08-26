@@ -1,0 +1,9 @@
+fastapi[standard]
+pipx
+ignr
+pyenv-win
+pytest
+pytest-cov
+taskipy
+ruff
+pydantic[email]
