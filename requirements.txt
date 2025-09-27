@@ -7,3 +7,5 @@ pytest-cov
 taskipy
 ruff
 pydantic[email]
+pydantic-settings
+sqlalchemy
