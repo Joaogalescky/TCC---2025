@@ -9,3 +9,4 @@ ruff
 pydantic[email]
 pydantic-settings
 sqlalchemy
+alembic
