@@ -1,5 +1,7 @@
 from http import HTTPStatus
 
+from src.schemas import UserPublic
+
 
 def test_root_return_hello_world(client):
     response = client.get('/')
@@ -12,8 +14,8 @@ def test_create_user(client):
     response = client.post(
         '/users/',
         json={
-            'nome': 'testeusuario',
-            'senha': 'teste123',
+            'username': 'testeusuario',
+            'password': 'teste123',
             'email': 'usuario@teste.com',
             'statusVotacao': True,
         },
@@ -21,7 +23,7 @@ def test_create_user(client):
 
     assert response.status_code == HTTPStatus.CREATED
     assert response.json() == {
-        'nome': 'testeusuario',
+        'username': 'testeusuario',
         'email': 'usuario@teste.com',
         'statusVotacao': True,
         'id': 1,
@@ -32,8 +34,8 @@ def test_create_user_should_return_bad_request(client):
     response = client.post(
         '/users/',
         json={
-            'nome': 'testeusuario',
-            'senha': 'teste123',
+            'username': 'testeusuario',
+            'password': 'teste123',
             'statusVotacao': True,
         },
     )
@@ -47,16 +49,15 @@ def test_get_users(client):
     response = client.get('/users/')
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {
-        'users': [
-            {
-                'nome': 'testeusuario',
-                'email': 'usuario@teste.com',
-                'statusVotacao': True,
-                'id': 1,
-            }
-        ]
-    }
+    assert response.json() == {'users': []}
+
+
+def test_get_users_with_users(client, user):
+    user_schema = UserPublic.model_validate(user).model_dump()
+    response = client.get('/users/')
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {'users': [user_schema]}
 
 
 def test_get_user_by_id(client):
@@ -64,7 +65,7 @@ def test_get_user_by_id(client):
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {
-        'nome': 'testeusuario',
+        'username': 'testeusuario',
         'email': 'usuario@teste.com',
         'statusVotacao': True,
         'id': 1,
@@ -82,8 +83,8 @@ def test_update_user(client):
     response = client.put(
         '/users/1',
         json={
-            'nome': 'testeusuario2',
-            'senha': 'senha',
+            'username': 'testeusuario2',
+            'password': 'senha',
             'email': 'usuario2@teste.com',
             'statusVotacao': False,
         },
@@ -91,7 +92,7 @@ def test_update_user(client):
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {
-        'nome': 'testeusuario2',
+        'username': 'testeusuario2',
         'email': 'usuario2@teste.com',
         'statusVotacao': False,
         'id': 1,
@@ -102,8 +103,8 @@ def test_update_user_should_return_not_found(client):
     response = client.put(
         '/users/-1',
         json={
-            'nome': 'teste_usuario_inexistente',
-            'senha': 'senha',
+            'username': 'teste_usuario_inexistente',
+            'password': 'senha',
             'email': 'usuario_inexistente@teste.com',
             'statusVotacao': False,
         },
