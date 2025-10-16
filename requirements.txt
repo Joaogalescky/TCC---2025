@@ -9,4 +9,10 @@ ruff
 pydantic[email]
 pydantic-settings
 sqlalchemy
-alembic
+# criptografia
+openfhe
+cython
+pybind11
+"pybind11[global]"
+cmaker
+g
