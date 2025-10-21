@@ -31,12 +31,12 @@ def create_user(user: UserSchema, session: Session = Depends(get_session)):
         if db_user.username == user.username:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
-                detail='Username already registered',
+                detail='Username already exists',
             )
         elif db_user.email == user.email:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
-                detail='Email already registered',
+                detail='Email already exists',
             )
 
     db_user = User(
@@ -112,18 +112,24 @@ def update_user_partial(
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
-    if user.username:
-        db_user.username = user.username
-    if user.password:
-        db_user.password = user.password
-    if user.email:
-        db_user.email = user.email
-    if user.statusVotacao:
-        db_user.statusVotacao = user.statusVotacao
-    session.commit()
-    session.refresh(db_user)
+    try:
+        if user.username:
+            db_user.username = user.username
+        if user.password:
+            db_user.password = user.password
+        if user.email:
+            db_user.email = user.email
+        if user.statusVotacao:
+            db_user.statusVotacao = user.statusVotacao
+        session.commit()
+        session.refresh(db_user)
 
-    return db_user
+        return db_user
+    except IntegrityError:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Username or Email already exists',
+        )
 
 
 @app.delete(
