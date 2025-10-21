@@ -90,9 +90,17 @@ def test_get_users_with_users(client, user):
     assert response.json() == {'users': [user_schema]}
 
 
+# def test_get_user_by_id(client, user):
+#     user_schema = UserPublic.model_validate(user).model_dump()
+#     response = client.get('/users/1')
+
+#     assert response.status_code == HTTPStatus.OK
+#     assert response.json() == user_schema
+
+
 def test_get_user_by_id(client, user):
     user_schema = UserPublic.model_validate(user).model_dump()
-    response = client.get('/users/1')
+    response = client.get(f'/users/{user.id}')
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == user_schema
@@ -156,7 +164,7 @@ def test_update_user_should_return_not_found(client):
         '/users/-1',
         json={
             'username': 'teste_usuario_inexistente',
-            'password': 'senha',
+            'password': 'senha_inexistente',
             'email': 'usuario_inexistente@teste.com',
             'statusVotacao': False,
         },
@@ -166,7 +174,7 @@ def test_update_user_should_return_not_found(client):
     assert response.json() == {'detail': 'User not found'}
 
 
-def test_update_user_partial(client, user):
+def test_parcial_update_user(client, user):
     response = client.patch(
         '/users/1',
         json={
@@ -186,6 +194,47 @@ def test_update_user_partial(client, user):
     }
 
 
+def test_parcial_update_user_should_return_not_found(client):
+    response = client.patch(
+        '/users/-1',
+        json={
+            'username': 'teste_usuario_inexistente',
+            'password': 'senha_inexistente',
+            'email': 'usuario_inexistente@teste.com',
+            'statusVotacao': False,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'User not found'}
+
+
+def test_parcial_update_user_integrity_error(client, user):
+    client.post(
+        '/users/',
+        json={
+            'username': 'testeusuario3',
+            'password': 'testeusuario3',
+            'email': 'testeusuario3@teste.com',
+            'statusVotacao': False,
+        },
+    )
+    response_update = client.patch(
+        f'/users/{user.id}',
+        json={
+            'username': 'testeusuario3',
+            'password': 'nova_senha',
+            'email': 'usuario2@teste.com',
+            'statusVotacao': True,
+        },
+    )
+
+    assert response_update.status_code == HTTPStatus.CONFLICT
+    assert response_update.json() == {
+        'detail': 'Username or Email already exists'
+    }
+
+
 def test_delete_user(client, user):
     response = client.delete(
         '/users/1',
@@ -195,7 +244,7 @@ def test_delete_user(client, user):
     assert response.json() == {'message': 'User deleted'}
 
 
-def test_delete_user_should_return_not_found(client, user):
+def test_delete_user_should_return_not_found(client):
     response = client.delete(
         'users/-1',
     )
