@@ -13,6 +13,6 @@ sqlalchemy
 openfhe
 cython
 pybind11
-"pybind11[global]"
+pybind11[global]
 cmaker
 g

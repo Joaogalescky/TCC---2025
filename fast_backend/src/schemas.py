@@ -15,16 +15,12 @@ class UserSchema(BaseModel):
     statusVotacao: bool
 
 
-class UserDB(UserSchema):
-    id: int
-
-
 class UserPublic(BaseModel):
     id: int
     username: str
     email: EmailStr
     statusVotacao: bool
-    model_config=ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserList(BaseModel):

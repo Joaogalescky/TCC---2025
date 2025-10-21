@@ -16,7 +16,10 @@ def test_create_user(session, mock_db_time):
     """
     with mock_db_time(model=User) as time:
         new_user = User(
-            username='teste', password='teste', email='teste@email.com'
+            username='teste',
+            password='teste',
+            email='teste@email.com',
+            statusVotacao=False,
         )
         session.add(new_user)  # adiciona o registro a sessão
         session.commit()  # realiza a inserção ao banco
@@ -29,7 +32,7 @@ def test_create_user(session, mock_db_time):
         'username': 'teste',
         'password': 'teste',
         'email': 'teste@email.com',
-        'statusVotacao': True,
+        'statusVotacao': False,
         'created_at': time,
         'updated_at': time,
     }

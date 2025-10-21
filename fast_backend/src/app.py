@@ -2,11 +2,12 @@ from http import HTTPStatus
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.database import get_session
 from src.models import User
-from src.schemas import Message, UserDB, UserList, UserPublic, UserSchema
+from src.schemas import Message, UserList, UserPublic, UserSchema
 
 app = FastAPI()
 
@@ -62,41 +63,81 @@ def get_users(
 @app.get(
     '/users/{user_id}', status_code=HTTPStatus.OK, response_model=UserPublic
 )
-def get_user_by_id(user_id: int):
-    if user_id > len(database) or user_id < 1:
+def get_user_by_id(user_id: int, session: Session = Depends(get_session)):
+    db_user = session.scalar(select(User).where(User.id == user_id))
+    if not db_user:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
-
-    return database[user_id - 1]
+    return db_user
 
 
 @app.put(
     '/users/{user_id}', status_code=HTTPStatus.OK, response_model=UserPublic
 )
-def update_user(user_id: int, user: UserSchema):
-    if user_id > len(database) or user_id < 1:
+def update_user(
+    user_id: int, user: UserSchema, session: Session = Depends(get_session)
+):
+    db_user = session.scalar(select(User).where(User.id == user_id))
+    if not db_user:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
-    user_with_id = UserDB(**user.model_dump(), id=user_id)
-    database[user_id - 1] = user_with_id
-    return user_with_id
+    try:
+        db_user.username = user.username
+        db_user.password = user.password
+        db_user.email = user.email
+        db_user.statusVotacao = user.statusVotacao
+        session.commit()
+        session.refresh(db_user)
+
+        return db_user
+
+    except IntegrityError:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Username or Email already exists',
+        )
 
 
-# @app.patch()
+@app.patch(
+    '/users/{user_id}', status_code=HTTPStatus.OK, response_model=UserPublic
+)
+def update_user_partial(
+    user_id: int, user: UserSchema, session: Session = Depends(get_session)
+):
+    db_user = session.scalar(select(User).where(User.id == user_id))
+    if not db_user:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='User not found'
+        )
+    if user.username:
+        db_user.username = user.username
+    if user.password:
+        db_user.password = user.password
+    if user.email:
+        db_user.email = user.email
+    if user.statusVotacao:
+        db_user.statusVotacao = user.statusVotacao
+    session.commit()
+    session.refresh(db_user)
+
+    return db_user
 
 
 @app.delete(
     '/users/{user_id}', status_code=HTTPStatus.OK, response_model=Message
 )
-def delete_user(user_id: int):
-    if user_id > len(database) or user_id < 1:
+def delete_user(user_id: int, session: Session = Depends(get_session)):
+    db_user = session.scalar(select(User).where(User.id == user_id))
+    
+    if not db_user:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
-
-    del database[user_id - 1]
+    
+    session.delete(db_user)
+    session.commit()
 
     return {'message': 'User deleted'}
