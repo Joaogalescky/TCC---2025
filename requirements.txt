@@ -10,6 +10,9 @@ pydantic[email]
 pydantic-settings
 sqlalchemy
 alembic
+pyjwt
+tzdata
+"pwdlib[argon2]"
 # criptografia
 openfhe
 cython

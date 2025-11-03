@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from src.app import app
 from src.database import get_session
 from src.models import User, table_registry
+from src.security import get_password_hash
 
 
 @pytest.fixture
@@ -76,13 +77,29 @@ def mock_db_time():
 
 @pytest.fixture
 def user(session):
+    password = 'senha'
     user = User(
         username='testeusuario',
-        password='senha',
+        password=get_password_hash(password),
         email='usuario@teste.com',
         statusVotacao=True,
     )
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    user.clean_password = password
+
     return user
+
+
+@pytest.fixture
+def token(client, user):
+    response = client.post(
+        '/token',
+        data={
+            'username': user.email,
+            'password': user.clean_password,
+        },
+    )
+    return response.json()['access_token']

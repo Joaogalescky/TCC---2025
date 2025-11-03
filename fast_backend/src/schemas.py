@@ -33,3 +33,8 @@ class CandidatoPublic(UserSchema):
 
 class AdminPublic(UserSchema):
     id: int
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
