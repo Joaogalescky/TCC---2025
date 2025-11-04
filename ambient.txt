@@ -1,0 +1,8 @@
+https://fastapidozero.dunossauro.com/estavel/01/#__tabbed_1_2
+
+pip install --user pipx
+pipx ensurepath
+pipx install poetry
+poetry self add poetry-plugin-shell
+poetry python install 3.14
+poetry env use 3.13
