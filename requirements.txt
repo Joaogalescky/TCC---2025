@@ -12,7 +12,11 @@ sqlalchemy
 alembic
 pyjwt
 tzdata
-"pwdlib[argon2]"
+pwdlib[argon2]
+#"pwdlib[argon2]"
+sqlalchemy[asyncio]
+#"sqlalchemy[asyncio]"
+aiosqlite
 # criptografia
 openfhe
 cython
