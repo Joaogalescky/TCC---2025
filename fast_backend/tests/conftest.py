@@ -1,10 +1,12 @@
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
 from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import Session
+from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 
 from src.app import app
@@ -25,25 +27,27 @@ def client(session):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def session():
+@pytest_asyncio.fixture
+async def session():
     """
     Configura e limpa um banco de dados de teste
     para cada teste que o solicita,
     assegurando que cada teste seja isolado
     e tenha seu próprio ambiente limpo para trabalhar.
     """
-    engine = create_engine(
-        'sqlite:///:memory:',
+    engine = create_async_engine(
+        'sqlite+aiosqlite:///:memory:',
         connect_args={'check_same_thread': False},
         poolclass=StaticPool,
     )  # cria uma sessão em memória
-    table_registry.metadata.create_all(engine)
-
-    with Session(engine) as session:  # cria uma sessão para os teste
-        yield session  # fornece uma instância para teste
-
-    table_registry.metadata.drop_all(engine)  # apaga as tabelas
+    async with engine.begin() as conn:
+        await conn.run_sync(table_registry.metadata.create_all)
+        
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        yield session
+    
+    async with engine.begin() as conn:
+        await conn.run_sync(table_registry.metadata.drop_all)
 
 
 @contextmanager

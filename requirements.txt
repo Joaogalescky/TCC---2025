@@ -17,6 +17,7 @@ pwdlib[argon2]
 sqlalchemy[asyncio]
 #"sqlalchemy[asyncio]"
 aiosqlite
+pytest-asyncio
 # criptografia
 openfhe
 cython
