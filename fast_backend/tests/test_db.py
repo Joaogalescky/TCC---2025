@@ -1,11 +1,13 @@
 from dataclasses import asdict
 
+import pytest
 from sqlalchemy import Select
 
 from src.models import User
 
 
-def test_create_user(session, mock_db_time):
+@pytest.mark.asyncio
+async def test_create_user(session, mock_db_time):
     """
     Adiciona um novo usuário ao banco de dados,
     faz commit das mudanças, e depois verifica se o usuário
@@ -22,10 +24,10 @@ def test_create_user(session, mock_db_time):
             statusVotacao=False,
         )
         session.add(new_user)  # adiciona o registro a sessão
-        session.commit()  # realiza a inserção ao banco
+        await session.commit()  # realiza a inserção ao banco
 
     # busca o dado
-    user = session.scalar(Select(User).where(User.username == 'teste'))
+    user = await session.scalar(Select(User).where(User.username == 'teste'))
 
     assert asdict(user) == {
         'id': 1,

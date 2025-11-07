@@ -1,12 +1,11 @@
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-
 from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from src.app import app
@@ -42,10 +41,10 @@ async def session():
     )  # cria uma sessão em memória
     async with engine.begin() as conn:
         await conn.run_sync(table_registry.metadata.create_all)
-        
+
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(table_registry.metadata.drop_all)
 
@@ -79,8 +78,8 @@ def mock_db_time():
     return _mock_db_time
 
 
-@pytest.fixture
-def user(session):
+@pytest_asyncio.fixture
+async def user(session):
     password = 'senha'
     user = User(
         username='testeusuario',
@@ -89,8 +88,8 @@ def user(session):
         statusVotacao=True,
     )
     session.add(user)
-    session.commit()
-    session.refresh(user)
+    await session.commit()
+    await session.refresh(user)
 
     user.clean_password = password
 
