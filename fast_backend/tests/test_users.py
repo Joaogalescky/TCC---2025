@@ -120,21 +120,12 @@ def test_update_user(client, user, token):
     }
 
 
-def test_update_integrity_error(client, user, token):
-    client.post(
-        '/users/',
-        json={
-            'username': 'test3',
-            'password': 'test3',
-            'email': 'test3@test.com',
-            'statusVotacao': False,
-        },
-    )
+def test_update_integrity_error(client, user, other_user, token):
     response_update = client.put(
         f'/users/{user.id}',
         headers={'Authorization': f'Bearer {token}'},
         json={
-            'username': 'test3',
+            'username': other_user.username,
             'password': 'newtest3',
             'email': 'newtest3@test.com',
             'statusVotacao': True,
