@@ -18,6 +18,8 @@ sqlalchemy[asyncio]
 #"sqlalchemy[asyncio]"
 aiosqlite
 pytest-asyncio
+factory-boy
+freezegun
 # criptografia
 openfhe
 cython
