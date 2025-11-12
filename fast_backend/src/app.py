@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from fastapi import FastAPI
 
-from src.routers import auth, candidate, election, users
+from src.routers import auth, candidates, elections, users
 from src.schemas import Message
 
 app = FastAPI()
@@ -10,8 +10,8 @@ app = FastAPI()
 
 app.include_router(auth.router)
 app.include_router(users.router)
-app.include_router(candidate.router)
-app.include_router(election.router)
+app.include_router(candidates.router)
+app.include_router(elections.router)
 
 
 @app.get('/', status_code=HTTPStatus.OK, response_model=Message)
