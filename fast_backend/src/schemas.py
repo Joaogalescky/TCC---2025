@@ -8,10 +8,7 @@ class Message(BaseModel):
 class UserSchema(BaseModel):
     username: str
     password: str
-    # cpf: str
-    # telefone: str
     email: EmailStr
-    # tipo: str
     statusVotacao: bool
 
 
@@ -27,12 +24,32 @@ class UserList(BaseModel):
     users: list[UserPublic]
 
 
-class CandidatoPublic(UserSchema):
-    id: int
+class CandidateSchema(BaseModel):
+    username: str
 
 
-class AdminPublic(UserSchema):
+class CandidatePublic(BaseModel):
     id: int
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateList(BaseModel):
+    candidates: list[CandidatePublic]
+
+
+class ElectionSchema(BaseModel):
+    title: str
+
+
+class ElectionPublic(BaseModel):
+    id: int
+    title: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ElectionList(BaseModel):
+    elections: list[ElectionPublic]
 
 
 class Token(BaseModel):
