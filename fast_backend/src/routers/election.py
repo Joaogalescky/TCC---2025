@@ -46,31 +46,23 @@ async def get_elections(
     return {'elections': elections}
 
 
-@router.get('/{election_id}', status_code=HTTPStatus.OK, response_model=ElectionSchema)
+@router.get('/{election_id}', status_code=HTTPStatus.OK, response_model=ElectionPublic)
 async def get_election_by_id(election_id: int, session: Session):
-    db_election = await session.scalar(
-        select(Election).where(Election.id == election_id)
-    )
+    db_election = await session.scalar(select(Election).where(Election.id == election_id))
     if not db_election:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='Election not found'
-        )
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
     return db_election
 
 
-@router.put('/{election_id}', status_code=HTTPStatus.OK, response_model=ElectionSchema)
+@router.put('/{election_id}', status_code=HTTPStatus.OK, response_model=ElectionPublic)
 async def update_election(
     election_id: int,
     election: ElectionSchema,
     session: Session,
 ):
-    db_election = await session.scalar(
-        select(Election).where(Election.id == election_id)
-    )
+    db_election = await session.scalar(select(Election).where(Election.id == election_id))
     if not db_election:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='Election not found'
-        )
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
     try:
         db_election.title = election.title
@@ -91,15 +83,10 @@ async def delete_election(
     election_id: int,
     session: Session,
 ):
-    db_election = await session.scalar(
-        select(Election).where(Election.id == election_id)
-    )
+    db_election = await session.scalar(select(Election).where(Election.id == election_id))
 
     if not db_election:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Election not found'
-        )
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
     await session.delete(db_election)
     await session.commit()

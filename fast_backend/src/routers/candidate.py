@@ -104,8 +104,7 @@ async def delete_candidate(
     )
     if not db_candidate:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, 
-            detail='Candidate not found'
+            status_code=HTTPStatus.NOT_FOUND, detail='Candidate not found'
         )
 
     await session.delete(db_candidate)
