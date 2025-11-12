@@ -15,6 +15,7 @@ from src.schemas import (
     FilterPage,
     Message,
 )
+from src.models import Election_Candidate, Candidate
 
 router = APIRouter(prefix='/elections', tags=['elections'])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -92,3 +93,41 @@ async def delete_election(
     await session.commit()
 
     return {'message': 'Election deleted'}
+
+
+@router.post('/{election_id}/candidates/{candidate_id}', status_code=HTTPStatus.CREATED, response_model=Message)
+async def add_candidate_to_election(election_id: int, candidate_id: int, session: Session):
+    """Associa um candidato a uma eleição"""
+    
+    # Verificar se eleição existe
+    election = await session.scalar(select(Election).where(Election.id == election_id))
+    if not election:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+    
+    # Verificar se candidato existe
+    candidate = await session.scalar(select(Candidate).where(Candidate.id == candidate_id))
+    if not candidate:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Candidate not found')
+    
+    # Verificar se associação já existe
+    existing = await session.scalar(
+        select(Election_Candidate).where(
+            Election_Candidate.fk_election == election_id,
+            Election_Candidate.fk_candidate == candidate_id
+        )
+    )
+    if existing:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Candidate already associated with this election'
+        )
+    
+    # Criar associação
+    election_candidate = Election_Candidate(
+        fk_election=election_id,
+        fk_candidate=candidate_id
+    )
+    session.add(election_candidate)
+    await session.commit()
+    
+    return {'message': 'Candidate added to election'}
