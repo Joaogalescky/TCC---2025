@@ -1,3 +1,5 @@
+from typing import List
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -60,3 +62,18 @@ class Token(BaseModel):
 class FilterPage(BaseModel):
     limit: int = Field(default=10, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+
+
+class VoteSchema(BaseModel):
+    candidate_id: int
+
+
+class VoteResponse(BaseModel):
+    message: str
+    vote_id: int
+
+
+class ElectionResultsSchema(BaseModel):
+    election_id: int
+    candidates: List[dict]  # [{"id": 1, "username": "Candidato A", "votes": 10}]
+    total_votes: int
