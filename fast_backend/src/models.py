@@ -70,6 +70,24 @@ class Vote_Election:
     id: Mapped[int] = mapped_column(init=False, primary_key=True, nullable=False)
     fk_user: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
     fk_election_candidate: Mapped[int] = mapped_column(ForeignKey('eleicao_candidato.id'))
-    total_votes: Mapped[int] = mapped_column(
-        nullable=False, default=0, server_default=text('0')
+    encrypted_vote: Mapped[str] = mapped_column(nullable=False)  # Voto criptografado (valor "1")
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, nullable=False, server_default=func.now()
+    )
+
+
+@table_registry.mapped_as_dataclass
+# Tabela para armazenar o registro criptografado de cada eleição
+class Election_Tally:
+    __tablename__ = 'registro_eleicao'
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True, nullable=False)
+    fk_election: Mapped[int] = mapped_column(ForeignKey('eleições.id'), unique=True)
+    encrypted_tally: Mapped[str] = mapped_column(nullable=False)
+    total_candidates: Mapped[int] = mapped_column(nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        init=False,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
