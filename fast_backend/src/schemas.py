@@ -50,6 +50,13 @@ class ElectionPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ElectionWithCandidates(BaseModel):
+    id: int
+    title: str
+    candidates: List[CandidatePublic]
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ElectionList(BaseModel):
     elections: list[ElectionPublic]
 

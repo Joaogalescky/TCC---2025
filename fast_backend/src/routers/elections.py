@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_session
 from src.models import Candidate, Election, Election_Candidate
 from src.schemas import (
+    CandidatePublic,
     ElectionList,
     ElectionPublic,
     ElectionSchema,
+    ElectionWithCandidates,
     FilterPage,
     Message,
 )
@@ -94,21 +96,29 @@ async def delete_election(
     return {'message': 'Election deleted'}
 
 
-@router.post('/{election_id}/candidates/{candidate_id}', status_code=HTTPStatus.CREATED, response_model=Message)
-async def add_candidate_to_election(election_id: int, candidate_id: int, session: Session):
-    """Associa um candidato a uma eleição"""
-
-    # Verificar se eleição existe
+@router.post('/{election_id}/candidates/{candidate_id}',
+    status_code=HTTPStatus.CREATED,
+    response_model=ElectionWithCandidates
+)
+async def add_candidate_to_election(
+    election_id: int,
+    candidate_id: int,
+    session: Session
+):
     election = await session.scalar(select(Election).where(Election.id == election_id))
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
-    # Verificar se candidato existe
-    candidate = await session.scalar(select(Candidate).where(Candidate.id == candidate_id))
+    candidate = await session.scalar(
+        select(Candidate)
+        .where(Candidate.id == candidate_id)
+    )
     if not candidate:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Candidate not found')
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Candidate not found'
+        )
 
-    # Verificar se associação já existe
     existing = await session.scalar(
         select(Election_Candidate).where(
             Election_Candidate.fk_election == election_id,
@@ -121,12 +131,51 @@ async def add_candidate_to_election(election_id: int, candidate_id: int, session
             detail='Candidate already associated with this election'
         )
 
-    # Criar associação
-    election_candidate = Election_Candidate(
+    db_election_candidate = Election_Candidate(
         fk_election=election_id,
         fk_candidate=candidate_id
     )
-    session.add(election_candidate)
+    session.add(db_election_candidate)
     await session.commit()
 
-    return {'message': 'Candidate added to election'}
+    candidates_query = await session.scalars(
+        select(Candidate)
+        .join(Election_Candidate, Candidate.id == Election_Candidate.fk_candidate)
+        .where(Election_Candidate.fk_election == election_id)
+    )
+    candidates = [
+        CandidatePublic(id=c.id, username=c.username)
+        for c in candidates_query.all()
+    ]
+
+    return ElectionWithCandidates(
+        id=election.id,
+        title=election.title,
+        candidates=candidates
+    )
+
+
+@router.get('/{election_id}/candidates',
+    status_code=HTTPStatus.OK,
+    response_model=ElectionWithCandidates
+)
+async def get_election_with_candidates_by_id(election_id: int, session: Session):
+    election = await session.scalar(select(Election).where(Election.id == election_id))
+    if not election:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+
+    candidates_query = await session.scalars(
+        select(Candidate)
+        .join(Election_Candidate, Candidate.id == Election_Candidate.fk_candidate)
+        .where(Election_Candidate.fk_election == election_id)
+    )
+    candidates = [
+        CandidatePublic(id=c.id, username=c.username)
+        for c in candidates_query.all()
+    ]
+
+    return ElectionWithCandidates(
+        id=election.id,
+        title=election.title,
+        candidates=candidates
+    )
