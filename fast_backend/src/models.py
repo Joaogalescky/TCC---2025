@@ -81,6 +81,8 @@ class Vote_Election:
     fk_election_candidate: Mapped[int] = mapped_column(ForeignKey('eleicao_candidato.id'))
     # Voto criptografado (valor "1")
     encrypted_vote: Mapped[str] = mapped_column(nullable=False)
+    # Prova ZK de 1-hot
+    zk_proof: Mapped[str] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         init=False, nullable=False, server_default=func.now()
     )

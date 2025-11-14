@@ -66,14 +66,22 @@ async def cast_vote(
     if not crypto_service.cc:
         crypto_service.setup_crypto()
 
-    # Encriptar o valor "1" (representa um voto)
-    encrypted_vote = crypto_service.encrypt_vote([1])
+    # Encriptar o valor "1" com validação e prova ZK
+    encrypted_vote, zk_proof = crypto_service.encrypt_vote_with_proof([1])
 
-    # Salvar voto criptografado
+    # Verificar prova ZK
+    if not crypto_service.verify_zk_proof(zk_proof, 1):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Invalid ZK proof for vote'
+        )
+
+    # Salvar voto criptografado com prova
     db_vote = Vote_Election(
         fk_user=current_user.id,
         fk_election_candidate=election_candidate.id,
-        encrypted_vote=encrypted_vote
+        encrypted_vote=encrypted_vote,
+        zk_proof=zk_proof
     )
     session.add(db_vote)
 
