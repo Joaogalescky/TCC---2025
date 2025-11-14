@@ -96,44 +96,40 @@ async def delete_election(
     return {'message': 'Election deleted'}
 
 
-@router.post('/{election_id}/candidates/{candidate_id}',
+@router.post(
+    '/{election_id}/candidates/{candidate_id}',
     status_code=HTTPStatus.CREATED,
-    response_model=ElectionWithCandidates
+    response_model=ElectionWithCandidates,
 )
 async def add_candidate_to_election(
-    election_id: int,
-    candidate_id: int,
-    session: Session
+    election_id: int, candidate_id: int, session: Session
 ):
     election = await session.scalar(select(Election).where(Election.id == election_id))
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
     candidate = await session.scalar(
-        select(Candidate)
-        .where(Candidate.id == candidate_id)
+        select(Candidate).where(Candidate.id == candidate_id)
     )
     if not candidate:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Candidate not found'
+            status_code=HTTPStatus.NOT_FOUND, detail='Candidate not found'
         )
 
     existing = await session.scalar(
         select(Election_Candidate).where(
             Election_Candidate.fk_election == election_id,
-            Election_Candidate.fk_candidate == candidate_id
+            Election_Candidate.fk_candidate == candidate_id,
         )
     )
     if existing:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail='Candidate already associated with this election'
+            detail='Candidate already associated with this election',
         )
 
     db_election_candidate = Election_Candidate(
-        fk_election=election_id,
-        fk_candidate=candidate_id
+        fk_election=election_id, fk_candidate=candidate_id
     )
     session.add(db_election_candidate)
     await session.commit()
@@ -144,20 +140,18 @@ async def add_candidate_to_election(
         .where(Election_Candidate.fk_election == election_id)
     )
     candidates = [
-        CandidatePublic(id=c.id, username=c.username)
-        for c in candidates_query.all()
+        CandidatePublic(id=c.id, username=c.username) for c in candidates_query.all()
     ]
 
     return ElectionWithCandidates(
-        id=election.id,
-        title=election.title,
-        candidates=candidates
+        id=election.id, title=election.title, candidates=candidates
     )
 
 
-@router.get('/{election_id}/candidates',
+@router.get(
+    '/{election_id}/candidates',
     status_code=HTTPStatus.OK,
-    response_model=ElectionWithCandidates
+    response_model=ElectionWithCandidates,
 )
 async def get_election_with_candidates_by_id(election_id: int, session: Session):
     election = await session.scalar(select(Election).where(Election.id == election_id))
@@ -170,12 +164,9 @@ async def get_election_with_candidates_by_id(election_id: int, session: Session)
         .where(Election_Candidate.fk_election == election_id)
     )
     candidates = [
-        CandidatePublic(id=c.id, username=c.username)
-        for c in candidates_query.all()
+        CandidatePublic(id=c.id, username=c.username) for c in candidates_query.all()
     ]
 
     return ElectionWithCandidates(
-        id=election.id,
-        title=election.title,
-        candidates=candidates
+        id=election.id, title=election.title, candidates=candidates
     )

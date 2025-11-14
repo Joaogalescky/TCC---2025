@@ -23,43 +23,38 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@router.post('/election/{election_id}',
-    status_code=HTTPStatus.CREATED,
-    response_model=VoteResponse
+@router.post(
+    '/election/{election_id}', status_code=HTTPStatus.CREATED, response_model=VoteResponse
 )
 async def cast_vote(
-    election_id: int,
-    vote: VoteSchema,
-    session: Session,
-    current_user: CurrentUser
+    election_id: int, vote: VoteSchema, session: Session, current_user: CurrentUser
 ):
     election_candidate = await session.scalar(
         select(Election_Candidate).where(
             Election_Candidate.fk_election == election_id,
-            Election_Candidate.fk_candidate == vote.candidate_id
+            Election_Candidate.fk_candidate == vote.candidate_id,
         )
     )
     if not election_candidate:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail='Candidate not found in this election'
+            detail='Candidate not found in this election',
         )
 
     existing_vote = await session.scalar(
         select(Vote_Election)
         .join(
             Election_Candidate,
-            Vote_Election.fk_election_candidate == Election_Candidate.id
-            )
+            Vote_Election.fk_election_candidate == Election_Candidate.id,
+        )
         .where(
             Vote_Election.fk_user == current_user.id,
-            Election_Candidate.fk_election == election_id
+            Election_Candidate.fk_election == election_id,
         )
     )
     if existing_vote:
         raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='User already voted in this election'
+            status_code=HTTPStatus.CONFLICT, detail='User already voted in this election'
         )
 
     # Configurar criptografia se necessário
@@ -72,8 +67,7 @@ async def cast_vote(
     # Verificar prova ZK
     if not crypto_service.verify_zk_proof(zk_proof, 1):
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail='Invalid ZK proof for vote'
+            status_code=HTTPStatus.BAD_REQUEST, detail='Invalid ZK proof for vote'
         )
 
     # Salvar voto criptografado com prova
@@ -81,7 +75,7 @@ async def cast_vote(
         fk_user=current_user.id,
         fk_election_candidate=election_candidate.id,
         encrypted_vote=encrypted_vote,
-        zk_proof=zk_proof
+        zk_proof=zk_proof,
     )
     session.add(db_vote)
 
@@ -93,25 +87,22 @@ async def cast_vote(
     if not tally:
         # Obter total de candidatos para criar tally inicial
         candidates_count = await session.scalar(
-            select(
-                func.count(Election_Candidate.id))
-                .where(
-                    Election_Candidate.fk_election == election_id
-                )
+            select(func.count(Election_Candidate.id)).where(
+                Election_Candidate.fk_election == election_id
+            )
         )
 
         encrypted_tally = crypto_service.create_zero_tally(candidates_count)
         tally = Election_Tally(
             fk_election=election_id,
             encrypted_tally=encrypted_tally,
-            total_candidates=candidates_count
+            total_candidates=candidates_count,
         )
         session.add(tally)
 
     # Somar voto ao tally (soma homomórfica)
     tally.encrypted_tally = crypto_service.add_vote_to_tally(
-        tally.encrypted_tally,
-        encrypted_vote
+        tally.encrypted_tally, encrypted_vote
     )
 
     current_user.statusVotacao = True
@@ -121,9 +112,10 @@ async def cast_vote(
     return VoteResponse(message='Vote cast successfully', vote_id=db_vote.id)
 
 
-@router.get('/results/{election_id}',
-            status_code=HTTPStatus.OK,
-            response_model=ElectionResultsSchema
+@router.get(
+    '/results/{election_id}',
+    status_code=HTTPStatus.OK,
+    response_model=ElectionResultsSchema,
 )
 async def get_election_results(election_id: int, session: Session):
     # Obtém os resultados descriptografados de uma eleição
@@ -138,8 +130,7 @@ async def get_election_results(election_id: int, session: Session):
     )
     if not tally:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='No votes found for this election'
+            status_code=HTTPStatus.NOT_FOUND, detail='No votes found for this election'
         )
 
     # Contar votos por candidato usando soma homomórfica
@@ -176,19 +167,16 @@ async def get_election_results(election_id: int, session: Session):
             decrypted_votes = 0
 
         candidate = await session.scalar(
-            select(Candidate)
-            .where(Candidate.id == ec.fk_candidate)
+            select(Candidate).where(Candidate.id == ec.fk_candidate)
         )
         total_votes += decrypted_votes
 
         candidates_results.append({
             'id': candidate.id,
             'username': candidate.username,
-            'votes': decrypted_votes
+            'votes': decrypted_votes,
         })
 
     return ElectionResultsSchema(
-        election_id=election_id,
-        candidates=candidates_results,
-        total_votes=total_votes
+        election_id=election_id, candidates=candidates_results, total_votes=total_votes
     )

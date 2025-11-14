@@ -3,7 +3,7 @@
 import uuid
 from typing import Dict, List
 
-from openfhe import *
+from openfhe import CCParamsBFVRNS, GenCryptoContext, PKESchemeFeature
 
 from src.settings import Settings
 
@@ -18,11 +18,15 @@ class HomomorphicElectionService:
         self.secret_key = None
         self.ciphertext_cache: Dict[str, any] = {}
 
-    def setup_crypto(self, plaintext_modulus=settings.PLAINTEXT_MODULUS, multiplicative_depth=settings.MULTIPLICATIVE_DEPTH):
+    def setup_crypto(
+        self,
+        plaintext_modulus=settings.PLAINTEXT_MODULUS,
+        multiplicative_depth=settings.MULTIPLICATIVE_DEPTH,
+    ):
         # Configurar parâmetros BFV
         parameters = CCParamsBFVRNS()
         parameters.SetPlaintextModulus(plaintext_modulus)
-        parameters.SetMultiplicativeDepth(multiplicative_depth)  # Aumentado para ZK proofs
+        parameters.SetMultiplicativeDepth(multiplicative_depth)
 
         # Criar contexto criptográfico
         self.cc = GenCryptoContext(parameters)
@@ -39,28 +43,31 @@ class HomomorphicElectionService:
         self.public_key = self.key_pair.publicKey
         self.secret_key = self.key_pair.secretKey
 
-    def validate_1hot_vector(self, vote_vector: List[int]) -> bool:
+    @staticmethod
+    def validate_1hot_vector(vote_vector: List[int]) -> bool:
         """Valida se o vetor é 1-hot válido"""
         # Verificar se todos os valores são 0 ou 1 (binários)
-        if not all(x in [0, 1] for x in vote_vector):
+        if not all(x in {0, 1} for x in vote_vector):
             return False
-            
+
         # Verificar se tem exatamente um "1"
         ones_count = sum(vote_vector)
-        
+
         # Deve somar exatamente 1
         return ones_count == 1 and len(vote_vector) > 0
 
-    def create_vote_vector(self, candidate_position: int, total_candidates: int) -> List[int]:
+    def create_vote_vector(
+        self, candidate_position: int, total_candidates: int
+    ) -> List[int]:
         if candidate_position < 0 or candidate_position >= total_candidates:
-            raise ValueError("Posição do candidato inválida")
+            raise ValueError('Posição do candidato inválida')
 
         vote = [0] * total_candidates
         vote[candidate_position] = 1
 
         # Validar antes de retornar
         if not self.validate_1hot_vector(vote):
-            raise ValueError("Vetor de voto inválido")
+            raise ValueError('Vetor de voto inválido')
 
         return vote
 
@@ -70,29 +77,31 @@ class HomomorphicElectionService:
 
         # Verificar que é 1-hot
         if not self.validate_1hot_vector(vote_vector):
-            raise ValueError("Vetor não é 1-hot válido")
+            raise ValueError('Vetor não é 1-hot válido')
 
         # Simular prova ZK
         proof_data = {
-            "sum_is_one": sum(vote_vector) == 1,
-            "all_binary": all(x in [0, 1] for x in vote_vector),
-            "vector_length": len(vote_vector)
+            'sum_is_one': sum(vote_vector) == 1,
+            'all_binary': all(x in {0, 1} for x in vote_vector),
+            'vector_length': len(vote_vector),
         }
 
         # Retornar "prova" como string
-        return f"zk_proof_{hash(str(proof_data))}"
+        return f'zk_proof_{hash(str(proof_data))}'
 
-    def verify_zk_proof(self, proof: str, total_candidates: int) -> bool:
+    @staticmethod
+    def verify_zk_proof(proof: str, total_candidates: int) -> bool:
         """Verifica a prova ZK"""
         # Implementação simplificada
-        # Em produção, verificaria a prova criptográfica real
-        return proof.startswith("zk_proof_") and len(proof) > 10
+        zk_proof_length = 10
+
+        return proof.startswith('zk_proof_') and len(proof) > zk_proof_length
 
     def encrypt_vote_with_proof(self, vote_vector: List[int]) -> tuple[str, str]:
         """Encripta voto e gera prova ZK"""
         # Validar 1-hot
         if not self.validate_1hot_vector(vote_vector):
-            raise ValueError("Voto deve ser 1-hot válido")
+            raise ValueError('Voto deve ser 1-hot válido')
 
         # Encriptar
         plaintext = self.cc.MakePackedPlaintext(vote_vector)
@@ -113,7 +122,7 @@ class HomomorphicElectionService:
         return cipher_id
 
     def create_zero_tally(self, total_candidates: int) -> str:
-        ''' Cria vetor para eleição '''
+        """Cria vetor para eleição"""
         # Cria vetor para eleição
         zero_vector = [0] * total_candidates  # [0, 0, n...]
 
@@ -132,7 +141,7 @@ class HomomorphicElectionService:
         return cipher_id
 
     def add_vote_to_tally(self, encrypted_tally: str, encrypted_vote: str) -> str:
-        ''' Adiciona voto criptofrado à eleição '''
+        """Adiciona voto criptofrado à eleição"""
         # Recuperar ciphertexts do cache
         ct_tally = self.ciphertext_cache[encrypted_tally]
         ct_vote = self.ciphertext_cache[encrypted_vote]
@@ -149,7 +158,7 @@ class HomomorphicElectionService:
         return result_id
 
     def decrypt_tally(self, encrypted_tally: str, total_candidates: int) -> List[int]:
-        ''' Descriptografa a eleição '''
+        """Descriptografa a eleição"""
         # Recuperar ciphertext do cache
         ct_tally = self.ciphertext_cache[encrypted_tally]
 
