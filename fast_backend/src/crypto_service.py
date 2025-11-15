@@ -171,5 +171,12 @@ class HomomorphicElectionService:
         return decrypted_values[:total_candidates]
 
 
+    def clear_cache(self):
+        self.ciphertext_cache.clear()
+        
+    def get_cache_size(self) -> int:
+        return len(self.ciphertext_cache)
+
+
 # Instância global do serviço
 crypto_service = HomomorphicElectionService()

@@ -43,6 +43,7 @@ async def stress_election_setup(session):
 @pytest.mark.asyncio
 async def test_crypto_stress_100_votes():
     crypto_service.setup_crypto()
+    crypto_service.clear_cache()
 
     start_time = time.time()
 
@@ -65,12 +66,14 @@ async def test_crypto_stress_100_votes():
 
     print(f"100 votos processados em {end_time - start_time:.2f}s")
     print(f"Resultados: {results}")
+    print(f"Cache final: {crypto_service.get_cache_size()} entradas")
     assert sum(results) == votes
 
 
 @pytest.mark.asyncio
 async def test_crypto_stress_1000_votes():
     crypto_service.setup_crypto()
+    crypto_service.clear_cache()
 
     start_time = time.time()
 
@@ -104,6 +107,7 @@ async def test_crypto_stress_1000_votes():
 @pytest.mark.asyncio
 async def test_crypto_stress_10000_votes():
     crypto_service.setup_crypto()
+    crypto_service.clear_cache()
 
     start_time = time.time()
     tally = crypto_service.create_zero_tally(3)
