@@ -169,7 +169,7 @@ async def test_crypto_stress_memory_usage():
     # Criar 1000 votos e verificar crescimento do cache
     for i in range(1000):
         vote_vector = crypto_service.create_vote_vector(i % 3, 3)
-        encrypted_vote = crypto_service.encrypt_vote(vote_vector)
+        crypto_service.encrypt_vote(vote_vector)
 
     final_cache_size = len(crypto_service.ciphertext_cache)
     cache_growth = final_cache_size - initial_cache_size
