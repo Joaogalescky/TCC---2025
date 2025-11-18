@@ -77,30 +77,21 @@ async def test_crypto_stress_1000_votes():
 
     start_time = time.time()
 
-    tally = crypto_service.create_zero_tally(3)
+    # Usando streaming para economizar memória
+    vote_vectors = []
+    for i in range(1000):
+        candidate_pos = i % 3
+        vote_vector = crypto_service.create_vote_vector(candidate_pos, 3)
+        vote_vectors.append(vote_vector)
 
-    # Processar em lotes de 100 para otimizar
-    for batch in range(10):  # 10 lotes de 100 = 1000
-        batch_votes = []
-        for i in range(100):
-            candidate_pos = (batch * 100 + i) % 3
-            vote_vector = crypto_service.create_vote_vector(candidate_pos, 3)
-            encrypted_vote = crypto_service.encrypt_vote(vote_vector)
-            batch_votes.append(encrypted_vote)
-
-        # Somar lote ao tally
-        for encrypted_vote in batch_votes:
-            tally = crypto_service.add_vote_to_tally(tally, encrypted_vote)
-
-        print(f"Lote {batch + 1}/10 processado")
-
-    results = crypto_service.decrypt_tally(tally, 3)
+    results = crypto_service.process_votes_streaming(vote_vectors, 3)
     end_time = time.time()
 
     votes = 1000
 
     print(f"1.000 votos processados em {end_time - start_time:.2f}s")
     print(f"Resultados: {results}")
+    print(f"Cache final: {crypto_service.get_cache_size()} entradas")
     assert sum(results) == votes
 
 
@@ -110,76 +101,82 @@ async def test_crypto_stress_10000_votes():
     crypto_service.clear_cache()
 
     start_time = time.time()
-    tally = crypto_service.create_zero_tally(3)
 
-    # Processar em lotes maiores
-    for batch in range(100):  # 100 lotes de 100 = 10.000
-        for i in range(100):
-            candidate_pos = (batch * 100 + i) % 3
-            vote_vector = crypto_service.create_vote_vector(candidate_pos, 3)
-            encrypted_vote = crypto_service.encrypt_vote(vote_vector)
-            tally = crypto_service.add_vote_to_tally(tally, encrypted_vote)
+    vote_vectors = []
+    for i in range(10000):
+        candidate_pos = i % 3
+        vote_vector = crypto_service.create_vote_vector(candidate_pos, 3)
+        vote_vectors.append(vote_vector)
 
-        if batch % 20 == 0:  # Log a cada 2.000 votos
-            print(f"Processados {(batch + 1) * 100} votos...")
-
-    results = crypto_service.decrypt_tally(tally, 3)
+    results = crypto_service.process_votes_streaming(vote_vectors, 3)
     end_time = time.time()
 
     votes = 10000
 
     print(f"10.000 votos processados em {end_time - start_time:.2f}s")
     print(f"Resultados: {results}")
+    print(f"Cache final: {crypto_service.get_cache_size()} entradas")
     assert sum(results) == votes
 
 
 @pytest.mark.asyncio
 async def test_crypto_stress_100000_votes():
     crypto_service.setup_crypto()
+    crypto_service.clear_cache()
 
     start_time = time.time()
-    tally = crypto_service.create_zero_tally(3)
 
-    for batch in range(1000):  # 1000 lotes de 100 = 100.000
-        for i in range(100):
-            candidate_pos = (batch * 100 + i) % 3
+    # Processando em lotes menores para evitar sobrecarga de memória
+    total_votes = 100000
+    batch_size = 5000
+    results = [0, 0, 0]
+
+    for batch_start in range(0, total_votes, batch_size):
+        batch_end = min(batch_start + batch_size, total_votes)
+        batch_votes = []
+        
+        for i in range(batch_start, batch_end):
+            candidate_pos = i % 3
             vote_vector = crypto_service.create_vote_vector(candidate_pos, 3)
-            encrypted_vote = crypto_service.encrypt_vote(vote_vector)
-            tally = crypto_service.add_vote_to_tally(tally, encrypted_vote)
+            batch_votes.append(vote_vector)
+        
+        batch_results = crypto_service.process_votes_streaming(batch_votes, 3)
+        
+        # Somar resultados do lote
+        for j in range(3):
+            results[j] += batch_results[j]
+        
+        print(f"Processados {batch_end} votos...")
+        crypto_service.clear_cache()
 
-        if batch % 100 == 0:  # Log a cada 10.000 votos
-            print(f"Processados {(batch + 1) * 100} votos...")
-
-    results = crypto_service.decrypt_tally(tally, 3)
     end_time = time.time()
-
-    votes = 100000
 
     print(f"100.000 votos processados em {end_time - start_time:.2f}s")
     print(f"Resultados: {results}")
-    assert sum(results) == votes
+    assert sum(results) == total_votes
 
 
 @pytest.mark.asyncio
 async def test_crypto_stress_memory_usage():
     crypto_service.setup_crypto()
+    crypto_service.clear_cache()
 
-    initial_cache_size = len(crypto_service.ciphertext_cache)
+    initial_cache_size = crypto_service.get_cache_size()
 
-    # Criar 1000 votos e verificar crescimento do cache
+    # Criar 1000 votos e verificar que o cache não cresce indefinidamente
     for i in range(1000):
         vote_vector = crypto_service.create_vote_vector(i % 3, 3)
         crypto_service.encrypt_vote(vote_vector)
 
-    final_cache_size = len(crypto_service.ciphertext_cache)
-    cache_growth = final_cache_size - initial_cache_size
+    final_cache_size = crypto_service.get_cache_size()
+    
+    print(f"Cache inicial: {initial_cache_size}")
+    print(f"Cache final: {final_cache_size}")
+    print(f"Limite máximo: {crypto_service.max_cache_size}")
 
-    print(f"Cache cresceu de {initial_cache_size} para {final_cache_size}")
-    print(f"Crescimento: {cache_growth} entradas")
-
-    cache = 1000
-
-    assert cache_growth >= cache
+    # Cache deve estar limitado pelo max_cache_size
+    assert final_cache_size <= crypto_service.max_cache_size
+    assert final_cache_size > 0
 
 
 @pytest.mark.asyncio
