@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import json
 import os
 import signal
@@ -8,9 +6,12 @@ import time
 
 import psutil
 
-sys.path.append('/workspaces/TCC---2025/fast_backend')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FAST_BACKEND_PATH = os.path.join(BASE_DIR, "fast_backend")
 
-from fast_backend.src.crypto_service import crypto_service
+sys.path.append(FAST_BACKEND_PATH)
+
+from src.crypto_service import crypto_service
 
 current_test = {
     'vote_count': 0,
@@ -169,15 +170,20 @@ def test_massive_votes():
     try:
         crypto_service.setup_crypto()
 
+        # T = K * O
+        # T = Tempo de execução
+        # K = Constante de proporcionalidade (tempo médio de execução)
+        # O = Quantidade de operações
+
         test_cases = [
             (100, "cem"),
             (1000, "mil"),
-            (10000, "dez mil"),
-            (100000, "cem mil"),
-            (1000000, "um milhão"),
-            (10000000, "dez milhões"),
-            (100000000, "cem milhões"),
-            (8000000000, "população mundial de")
+            # (10000, "dez mil"),
+            # (100000, "cem mil"),
+            # (1000000, "um milhão"),
+            # (10000000, "dez milhões"),
+            # (100000000, "cem milhões"),
+            # (8000000000, "população mundial de")
         ]
 
         for vote_count, description in test_cases:

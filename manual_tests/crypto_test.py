@@ -1,7 +1,10 @@
-#!/usr/bin/env python3
-
 import sys
-sys.path.append('/workspaces/TCC---2025/fast_backend')
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FAST_BACKEND_PATH = os.path.join(BASE_DIR, "fast_backend")
+
+sys.path.append(FAST_BACKEND_PATH)
 
 from src.crypto_service import crypto_service
 
