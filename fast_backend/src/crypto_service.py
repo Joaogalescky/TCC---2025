@@ -2,6 +2,7 @@
 
 import uuid
 from typing import Dict, List
+from collections import OrderedDict
 
 from openfhe import CCParamsBFVRNS, GenCryptoContext, PKESchemeFeature
 
@@ -11,12 +12,13 @@ settings = Settings()
 
 
 class HomomorphicElectionService:
-    def __init__(self):
+    def __init__(self, max_cache_size: int = 1000):
         self.cc = None
         self.key_pair = None
         self.public_key = None
         self.secret_key = None
-        self.ciphertext_cache: Dict[str, any] = {}
+        self.ciphertext_cache: OrderedDict = OrderedDict()
+        self.max_cache_size = max_cache_size
 
     def setup_crypto(
         self,
@@ -72,7 +74,7 @@ class HomomorphicElectionService:
         return vote
 
     def generate_zk_proof(self, vote_vector: List[int], ciphertext) -> str:
-        """Gera prova ZK de que o ciphertext contém um 1-hot válido"""
+        """Gera prova ZK simulada de que o ciphertext contém um 1-hot válido"""
         # Implementação simplificada de ZK proof
 
         # Verificar que é 1-hot
@@ -91,7 +93,7 @@ class HomomorphicElectionService:
 
     @staticmethod
     def verify_zk_proof(proof: str, total_candidates: int) -> bool:
-        """Verifica a prova ZK"""
+        """Verifica a prova ZK simulada"""
         # Implementação simplificada
         zk_proof_length = 10
 
@@ -112,14 +114,21 @@ class HomomorphicElectionService:
 
         # Armazenar em cache
         cipher_id = str(uuid.uuid4())
-        self.ciphertext_cache[cipher_id] = ciphertext
+        self.manage_cache(cipher_id, ciphertext)
 
         return cipher_id, zk_proof
 
     def encrypt_vote(self, vote_vector: List[int]) -> str:
-        """Método original mantido para compatibilidade"""
         cipher_id, _ = self.encrypt_vote_with_proof(vote_vector)
         return cipher_id
+
+    def manage_cache(self, cipher_id: str, ciphertext):
+        """Gerencia cache FIFO"""
+        if len(self.ciphertext_cache) >= self.max_cache_size:
+            self.ciphertext_cache.popitem(last=False)
+        
+        self.ciphertext_cache[cipher_id] = ciphertext
+        self.ciphertext_cache.move_to_end(cipher_id)
 
     def create_zero_tally(self, total_candidates: int) -> str:
         """Cria vetor para eleição"""
@@ -136,7 +145,7 @@ class HomomorphicElectionService:
         cipher_id = str(uuid.uuid4())
 
         # Armazena ciphertext em um dicio com o UUID
-        self.ciphertext_cache[cipher_id] = ciphertext
+        self.manage_cache(cipher_id, ciphertext)
 
         return cipher_id
 
@@ -153,7 +162,7 @@ class HomomorphicElectionService:
         result_id = str(uuid.uuid4())
 
         # Armazenar resultado em um dicio com o UUID
-        self.ciphertext_cache[result_id] = ct_result
+        self.manage_cache(result_id, ct_result)
 
         return result_id
 
@@ -175,6 +184,46 @@ class HomomorphicElectionService:
 
     def get_cache_size(self) -> int:
         return len(self.ciphertext_cache)
+
+    def batch_add_votes(self, encrypted_tally: str, encrypted_votes: List[str]) -> str:
+        """Adiciona múltiplos votos em um lote"""
+        current_tally = encrypted_tally
+        
+        for encrypted_vote in encrypted_votes:
+            current_tally = self.add_vote_to_tally(current_tally, encrypted_vote)
+            
+        return current_tally
+
+    def process_votes_streaming(self, vote_vectors: List[List[int]], total_candidates: int) -> List[int]:
+        """Processa em transmissão os lotes de votes"""
+        tally = self.create_zero_tally(total_candidates)
+        
+        batch_size = 50  # Processar em lotes pequenos
+        
+        for i in range(0, len(vote_vectors), batch_size):
+            batch = vote_vectors[i:i + batch_size]
+            
+            # Processar lote
+            for vote_vector in batch:
+                encrypted_vote = self.encrypt_vote(vote_vector)
+                tally = self.add_vote_to_tally(tally, encrypted_vote)
+            
+            # Limpar cache periodicamente
+            if i % (batch_size * 10) == 0:
+                self.cleanup_old_cache_entries()
+        
+        return self.decrypt_tally(tally, total_candidates)
+
+    def cleanup_old_cache_entries(self):
+        """Remove entradas antigas do cache"""
+        if len(self.ciphertext_cache) > self.max_cache_size // 2:
+            # Manter apenas metade das entradas mais recentes
+            items_to_keep = self.max_cache_size // 2
+            items = list(self.ciphertext_cache.items())
+            self.ciphertext_cache.clear()
+            
+            for key, value in items[-items_to_keep:]:
+                self.ciphertext_cache[key] = value
 
 
 # Instância global do serviço
