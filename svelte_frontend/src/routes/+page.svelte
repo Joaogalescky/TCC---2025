@@ -1,14 +1,20 @@
-<script>
-    let name = "World";
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { auth } from '../lib/stores/auth';
+
+	onMount(() => {
+		if ($auth.isAuthenticated) {
+			goto('/election');
+		} else {
+			goto('/login');
+		}
+	});
 </script>
 
-<h1>Hello, {name}!</h1>
-
-<style>
-    h1 {
-        color: red;
-    }
-</style>
-
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<div class="min-h-screen flex items-center justify-center bg-gray-50">
+	<div class="text-center">
+		<h1 class="text-3xl font-bold text-gray-900 mb-4">Sistema de Eleições</h1>
+		<p class="text-gray-600">Redirecionando...</p>
+	</div>
+</div>
