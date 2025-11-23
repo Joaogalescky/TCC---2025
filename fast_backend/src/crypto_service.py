@@ -176,8 +176,14 @@ class HomomorphicElectionService:
 
         # Extrair valores empacotados
         decrypted_values = plaintext_result.GetPackedValue()
-
-        return decrypted_values[:total_candidates]
+        
+        normalized = []
+        t = settings.PLAINTEXT_MODULUS
+        for v in decrypted_values[:total_candidates]:
+            if v < 0:
+                v = v + t
+            normalized.append(int(v))
+        return normalized
 
     def clear_cache(self):
         self.ciphertext_cache.clear()
