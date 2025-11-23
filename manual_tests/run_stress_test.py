@@ -72,6 +72,7 @@ def run_single_test(vote_count, description):
     # Medidores
     t_start = time.time()
     proc = psutil.Process(os.getpid())
+    proc.cpu_percent()
 
     mem_start = monitor_memory()
     current_test['initial_memory'] = mem_start  # importante para handler de sinal
@@ -128,6 +129,7 @@ def run_single_test(vote_count, description):
     gc.collect()
 
     mem_end = monitor_memory()
+    cpu_percent = proc.cpu_percent()
 
     metrics = {
         "duration": duration,
@@ -140,6 +142,7 @@ def run_single_test(vote_count, description):
         "memory_used": peak_memory_mb - mem_start,
         "initial_memory": mem_start,
         "final_memory": mem_end,
+        "cpu_percent": cpu_percent,
     }
 
     try:
@@ -221,10 +224,10 @@ def execute_test(run_id):
         # O = Quantidade de operações
         
         test_cases = [
-            # (100, "cem"),
-            # (1000, "mil"),
-            # (10000, "dez mil"),
-            # (65000, "sessenta e cinco mil"),
+            (100, "cem"),
+            (1000, "mil"),
+            (10000, "dez mil"),
+            (65000, "sessenta e cinco mil"),
             # (100000, "cem mil"),
             # (1000000, "um milhão"),
             # (10000000, "dez milhões"),
@@ -264,6 +267,7 @@ def generate_report():
             print(f"Memória inicial: {result['metrics']['initial_memory']:.1f} MB")
             print(f"Memória final: {result['metrics']['final_memory']:.1f} MB")
             print(f"Memória usada (pico - inicial): {result['metrics']['memory_used']:.2f} MB")
+            print(f"CPU média: {result['metrics']['cpu_percent']:.1f}%")
         else:
             print(f"Erro: {result.get('error', 'Desconhecido')}")
     
@@ -271,7 +275,7 @@ def generate_report():
     max_successful = max(successful_tests) if successful_tests else 0
     print(f"\nLIMITE MÁXIMO: {max_successful:,} votos")
 
-def execute_battery_of_test(num_tests=2):
+def execute_battery_of_test(num_tests):
     """Função principal de testes massivos"""
     import subprocess
     
@@ -300,4 +304,4 @@ if __name__ == "__main__":
         execute_test(run_id)
     else:
         # Modo de bateria de testes
-        execute_battery_of_test(num_tests=2)
+        execute_battery_of_test(25)
