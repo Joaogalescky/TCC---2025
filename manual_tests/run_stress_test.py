@@ -34,7 +34,7 @@ def signal_handler(signum, frame):
 
 def save_interrupted_test(signum):
     """Salva dados do teste interrompido"""
-    end_time = time.time()
+    end_time = time.perf_counter()
     duration = end_time - current_test['start_time']
     final_memory = monitor_memory()
     
@@ -54,7 +54,6 @@ def run_single_test(vote_count, description):
     print(f"\nTestando {description} votos ({vote_count:,})")
 
     current_test.clear()
-    current_test['start_time'] = time.time()
     current_test['vote_count'] = vote_count
     current_test['processed_votes'] = 0
     current_test['final_results'] = []
@@ -70,12 +69,16 @@ def run_single_test(vote_count, description):
     CLEAR_CACHE_EVERY = 0 # 0 = não limpar automaticamente; >0 = limpar a cada N votos
 
     # Medidores
-    t_start = time.time()
+    # Iniciar cronômetro após o setup para medir apenas o processamento de votos
+    current_test['start_time'] = time.perf_counter()
+    t_start = current_test['start_time']
+    
     proc = psutil.Process(os.getpid())
-    proc.cpu_percent()
+    proc.cpu_percent() # Primeira chamada para calibração
+    cpu_times_start = proc.cpu_times()
 
     mem_start = monitor_memory()
-    current_test['initial_memory'] = mem_start  # importante para handler de sinal
+    current_test['initial_memory'] = mem_start # importante para handler de sinal
 
     encrypt_total = 0.0
     evaladd_total = 0.0
@@ -83,26 +86,31 @@ def run_single_test(vote_count, description):
 
     tally_id = crypto_service.create_zero_tally(NUM_CANDIDATES)
 
+    # Feedback periódico (10% steps)
+    print_interval = max(1, vote_count // 10)
+    mem_check_interval = max(1, min(1000, vote_count // 100))
+
     for i in range(vote_count):
         candidate_idx = i % NUM_CANDIDATES
         vote_vec = crypto_service.create_vote_vector(candidate_idx, NUM_CANDIDATES)
 
-        t0 = time.time()
+        t0 = time.perf_counter()
         vote_id = crypto_service.encrypt_vote(vote_vec)
-        t1 = time.time()
+        t1 = time.perf_counter()
         encrypt_total += (t1 - t0)
 
-        t2 = time.time()
+        t2 = time.perf_counter()
         tally_id = crypto_service.add_vote_to_tally(tally_id, vote_id)
-        t3 = time.time()
+        t3 = time.perf_counter()
         evaladd_total += (t3 - t2)
 
-        # atualizar contadores para handler de sinal
         current_test['processed_votes'] = i + 1
 
-        cur_mem = monitor_memory()
-        if cur_mem > peak_memory_mb:
-            peak_memory_mb = cur_mem
+        # Monitorar memória com frequência adaptativa
+        if i % mem_check_interval == 0:
+            cur_mem = monitor_memory()
+            if cur_mem > peak_memory_mb:
+                peak_memory_mb = cur_mem
 
         # limpeza opcional do cache para controlar uso de memória
         if CLEAR_CACHE_EVERY and ((i + 1) % CLEAR_CACHE_EVERY == 0):
@@ -110,16 +118,17 @@ def run_single_test(vote_count, description):
             crypto_service.cleanup_old_cache_entries()
             gc.collect()
 
-        # feedback periódico (10% steps)
-        if (i + 1) % max(1, vote_count // 10) == 0:
+        if (i + 1) % print_interval == 0:
+            cur_mem = monitor_memory()
             pct = (i + 1) / vote_count * 100
             print(f"  * {pct:.0f}% - {i+1:,} votos processados - mem: {cur_mem:.1f} MB")
 
-    duration = time.time() - t_start
+    processing_end_time = time.perf_counter()
+    duration_processing = processing_end_time - t_start
 
-    tdec0 = time.time()
+    tdec0 = time.perf_counter()
     final_results = crypto_service.decrypt_tally(tally_id, NUM_CANDIDATES)
-    tdec1 = time.time()
+    tdec1 = time.perf_counter()
     decrypt_time = tdec1 - tdec0
 
     try:
@@ -129,20 +138,29 @@ def run_single_test(vote_count, description):
     gc.collect()
 
     mem_end = monitor_memory()
+    
+    # Cálculo final de CPU (User + System)
     cpu_percent = proc.cpu_percent()
+    cpu_times_end = proc.cpu_times()
+    cpu_time_used = (cpu_times_end.user - cpu_times_start.user) + \
+                    (cpu_times_end.system - cpu_times_start.system)
+    
+    total_wall_time = duration_processing + decrypt_time
 
     metrics = {
-        "duration": duration,
+        "duration": total_wall_time,
+        "processing_only_s": duration_processing,
         "encrypt_total_s": encrypt_total,
         "evaladd_total_s": evaladd_total,
         "decrypt_s": decrypt_time,
         "avg_encrypt_ms": (encrypt_total / vote_count) * 1000.0 if vote_count else 0,
         "avg_evaladd_ms": (evaladd_total / vote_count) * 1000.0 if vote_count else 0,
-        "votes_per_second": vote_count / duration if duration > 0 else 0,
+        "votes_per_second": vote_count / duration_processing if duration_processing > 0 else 0,
         "memory_used": peak_memory_mb - mem_start,
         "initial_memory": mem_start,
         "final_memory": mem_end,
         "cpu_percent": cpu_percent,
+        "cpu_time_s": cpu_time_used
     }
 
     try:
@@ -168,7 +186,8 @@ def run_single_test(vote_count, description):
 
     print("\n--- Resultados ---")
     print(f"Votos processados: {vote_count:,}")
-    print(f"Tempo total: {metrics['duration']:.2f}s")
+    print(f"Tempo Total (Wall): {metrics['duration']:.2f}s")
+    print(f"Tempo CPU (Real): {metrics['cpu_time_s']:.2f}s")
     print(f"Votos por segundo: {metrics['votes_per_second']:.2f}")
     print(f"Memória usada: {metrics['memory_used']:.2f} MB")
     print(f"Resultados (descriptografados): {final_results}")
@@ -241,7 +260,6 @@ def execute_test(run_id):
         
         generate_report()
         
-        
         timestamp = time.strftime('%Y%m%d_%H%M%S')
         filename = f'stress_test_report_run_{run_id}_{timestamp}.json'
         save_report(filename=filename)
@@ -262,12 +280,13 @@ def generate_report():
         print(f"\n{vote_count:,} votos: {status}")
         
         if result['success']:
-            print(f"Tempo: {result['metrics']['duration']:.2f}s")
-            print(f"Velocidade: {result['metrics']['votes_per_second']:.0f} votos/s")
-            print(f"Memória inicial: {result['metrics']['initial_memory']:.1f} MB")
-            print(f"Memória final: {result['metrics']['final_memory']:.1f} MB")
-            print(f"Memória usada (pico - inicial): {result['metrics']['memory_used']:.2f} MB")
-            print(f"CPU média: {result['metrics']['cpu_percent']:.1f}%")
+            m = result['metrics']
+            print(f"Tempo Wall: {m['duration']:.2f}s")
+            print(f"Tempo CPU: {m['cpu_time_s']:.2f}s")
+            print(f"Velocidade: {m['votes_per_second']:.0f} votos/s")
+            print(f"Memória inicial: {m['initial_memory']:.1f} MB")
+            print(f"Memória final: {m['final_memory']:.1f} MB")
+            print(f"Memória usada: {m['memory_used']:.2f} MB")
         else:
             print(f"Erro: {result.get('error', 'Desconhecido')}")
     
