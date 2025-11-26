@@ -30,8 +30,7 @@ async def stress_election_setup(session):
     for candidate in candidates:
         await session.refresh(candidate)
         election_candidate = Election_Candidate(
-            fk_election=election.id,
-            fk_candidate=candidate.id
+            fk_election=election.id, fk_candidate=candidate.id
         )
         session.add(election_candidate)
 
@@ -64,9 +63,9 @@ async def test_crypto_stress_100_votes():
 
     votes = 100
 
-    print(f"100 votos processados em {end_time - start_time:.2f}s")
-    print(f"Resultados: {results}")
-    print(f"Cache final: {crypto_service.get_cache_size()} entradas")
+    print(f'100 votos processados em {end_time - start_time:.2f}s')
+    print(f'Resultados: {results}')
+    print(f'Cache final: {crypto_service.get_cache_size()} entradas')
     assert sum(results) == votes
 
 
@@ -89,9 +88,9 @@ async def test_crypto_stress_1000_votes():
 
     votes = 1000
 
-    print(f"1.000 votos processados em {end_time - start_time:.2f}s")
-    print(f"Resultados: {results}")
-    print(f"Cache final: {crypto_service.get_cache_size()} entradas")
+    print(f'1.000 votos processados em {end_time - start_time:.2f}s')
+    print(f'Resultados: {results}')
+    print(f'Cache final: {crypto_service.get_cache_size()} entradas')
     assert sum(results) == votes
 
 
@@ -113,9 +112,9 @@ async def test_crypto_stress_10000_votes():
 
     votes = 10000
 
-    print(f"10.000 votos processados em {end_time - start_time:.2f}s")
-    print(f"Resultados: {results}")
-    print(f"Cache final: {crypto_service.get_cache_size()} entradas")
+    print(f'10.000 votos processados em {end_time - start_time:.2f}s')
+    print(f'Resultados: {results}')
+    print(f'Cache final: {crypto_service.get_cache_size()} entradas')
     assert sum(results) == votes
 
 
@@ -134,25 +133,25 @@ async def test_crypto_stress_100000_votes():
     for batch_start in range(0, total_votes, batch_size):
         batch_end = min(batch_start + batch_size, total_votes)
         batch_votes = []
-        
+
         for i in range(batch_start, batch_end):
             candidate_pos = i % 3
             vote_vector = crypto_service.create_vote_vector(candidate_pos, 3)
             batch_votes.append(vote_vector)
-        
+
         batch_results = crypto_service.process_votes_streaming(batch_votes, 3)
-        
+
         # Somar resultados do lote
         for j in range(3):
             results[j] += batch_results[j]
-        
-        print(f"Processados {batch_end} votos...")
+
+        print(f'Processados {batch_end} votos...')
         crypto_service.clear_cache()
 
     end_time = time.time()
 
-    print(f"100.000 votos processados em {end_time - start_time:.2f}s")
-    print(f"Resultados: {results}")
+    print(f'100.000 votos processados em {end_time - start_time:.2f}s')
+    print(f'Resultados: {results}')
     assert sum(results) == total_votes
 
 
@@ -169,10 +168,10 @@ async def test_crypto_stress_memory_usage():
         crypto_service.encrypt_vote(vote_vector)
 
     final_cache_size = crypto_service.get_cache_size()
-    
-    print(f"Cache inicial: {initial_cache_size}")
-    print(f"Cache final: {final_cache_size}")
-    print(f"Limite máximo: {crypto_service.max_cache_size}")
+
+    print(f'Cache inicial: {initial_cache_size}')
+    print(f'Cache final: {final_cache_size}')
+    print(f'Limite máximo: {crypto_service.max_cache_size}')
 
     # Cache deve estar limitado pelo max_cache_size
     assert final_cache_size <= crypto_service.max_cache_size
@@ -200,8 +199,8 @@ async def test_crypto_overflow_protection():
     results = crypto_service.decrypt_tally(tally, 1)
     expected_votes = min(1000, max_safe_votes)
 
-    print(f"Votos processados: {expected_votes}")
-    print(f"Resultado: {results[0]}")
+    print(f'Votos processados: {expected_votes}')
+    print(f'Resultado: {results[0]}')
 
     assert results[0] == expected_votes
 
@@ -216,13 +215,13 @@ async def test_api_stress_multiple_users(client, stress_election_setup, session)
     users_data = []
     for i in range(50):
         user_data = {
-            "username": f"stress_user_{i}",
-            "email": f"stress_user_{i}@test.com",
-            "password": "testpass",
-            "statusVotacao": False
+            'username': f'stress_user_{i}',
+            'email': f'stress_user_{i}@test.com',
+            'password': 'testpass',
+            'statusVotacao': False,
         }
 
-        response = client.post("/users", json=user_data)
+        response = client.post('/users', json=user_data)
         assert response.status_code == HTTPStatus.CREATED
         users_data.append(user_data)
 
@@ -230,54 +229,54 @@ async def test_api_stress_multiple_users(client, stress_election_setup, session)
     vote_count = 0
     for i, user_data in enumerate(users_data):
         # Login
-        login_response = client.post("/auth/token", data={
-            "username": user_data["email"],
-            "password": user_data["password"]
-        })
+        login_response = client.post(
+            '/auth/token',
+            data={'username': user_data['email'], 'password': user_data['password']},
+        )
         assert login_response.status_code == HTTPStatus.OK
-        token = login_response.json()["access_token"]
+        token = login_response.json()['access_token']
 
         # Votar
         candidate_id = candidates[i % 3].id  # Distribuir votos
         vote_response = client.post(
-            f"/vote/election/{election.id}",
-            json={"candidate_id": candidate_id},
-            headers={"Authorization": f"Bearer {token}"}
+            f'/vote/election/{election.id}',
+            json={'candidate_id': candidate_id},
+            headers={'Authorization': f'Bearer {token}'},
         )
 
         if vote_response.status_code == HTTPStatus.CREATED:
             vote_count += 1
 
     # Verificar resultados
-    results_response = client.get(f"/vote/results/{election.id}")
+    results_response = client.get(f'/vote/results/{election.id}')
     assert results_response.status_code == HTTPStatus.OK
 
     results = results_response.json()
-    print(f"Votos processados via API: {vote_count}")
-    print(f"Total de votos: {results['total_votes']}")
+    print(f'Votos processados via API: {vote_count}')
+    print(f'Total de votos: {results["total_votes"]}')
 
-    assert results["total_votes"] == vote_count
+    assert results['total_votes'] == vote_count
 
 
 class StressElectionFactory(factory.Factory):
     class Meta:
         model = Election
 
-    title = "Stress Test Election"
+    title = 'Stress Test Election'
 
 
 class StressCandidateFactory(factory.Factory):
     class Meta:
         model = Candidate
 
-    username = factory.Sequence(lambda n: f"candidate_{n}")
+    username = factory.Sequence(lambda n: f'candidate_{n}')
 
 
 class StressUserFactory(factory.Factory):
     class Meta:
         model = User
 
-    username = factory.Sequence(lambda n: f"stress_user_{n}")
-    email = factory.LazyAttribute(lambda obj: f"{obj.username}@stress.com")
-    password = "stress_password"
+    username = factory.Sequence(lambda n: f'stress_user_{n}')
+    email = factory.LazyAttribute(lambda obj: f'{obj.username}@stress.com')
+    password = 'stress_password'
     statusVotacao = False
