@@ -1,8 +1,8 @@
 # https://openfheorg.github.io/openfhe-python/html/index.html
 
 import uuid
-from typing import Dict, List
 from collections import OrderedDict
+from typing import List
 
 from openfhe import CCParamsBFVRNS, GenCryptoContext, PKESchemeFeature
 
@@ -126,7 +126,7 @@ class HomomorphicElectionService:
         """Gerencia cache FIFO"""
         if len(self.ciphertext_cache) >= self.max_cache_size:
             self.ciphertext_cache.popitem(last=False)
-        
+
         self.ciphertext_cache[cipher_id] = ciphertext
         self.ciphertext_cache.move_to_end(cipher_id)
 
@@ -176,13 +176,12 @@ class HomomorphicElectionService:
 
         # Extrair valores empacotados
         decrypted_values = plaintext_result.GetPackedValue()
-        
+
         normalized = []
         t = settings.PLAINTEXT_MODULUS
         for v in decrypted_values[:total_candidates]:
-            if v < 0:
-                v = v + t
-            normalized.append(int(v))
+            normalized_v = v + t if v < 0 else v
+            normalized.append(int(normalized_v))
         return normalized
 
     def clear_cache(self):
@@ -194,30 +193,32 @@ class HomomorphicElectionService:
     def batch_add_votes(self, encrypted_tally: str, encrypted_votes: List[str]) -> str:
         """Adiciona múltiplos votos em um lote"""
         current_tally = encrypted_tally
-        
+
         for encrypted_vote in encrypted_votes:
             current_tally = self.add_vote_to_tally(current_tally, encrypted_vote)
-            
+
         return current_tally
 
-    def process_votes_streaming(self, vote_vectors: List[List[int]], total_candidates: int) -> List[int]:
+    def process_votes_streaming(
+        self, vote_vectors: List[List[int]], total_candidates: int
+    ) -> List[int]:
         """Processa em transmissão os lotes de votes"""
         tally = self.create_zero_tally(total_candidates)
-        
+
         batch_size = 50  # Processar em lotes pequenos
-        
+
         for i in range(0, len(vote_vectors), batch_size):
-            batch = vote_vectors[i:i + batch_size]
-            
+            batch = vote_vectors[i : i + batch_size]
+
             # Processar lote
             for vote_vector in batch:
                 encrypted_vote = self.encrypt_vote(vote_vector)
                 tally = self.add_vote_to_tally(tally, encrypted_vote)
-            
+
             # Limpar cache periodicamente
             if i % (batch_size * 10) == 0:
                 self.cleanup_old_cache_entries()
-        
+
         return self.decrypt_tally(tally, total_candidates)
 
     def cleanup_old_cache_entries(self):
@@ -227,7 +228,7 @@ class HomomorphicElectionService:
             items_to_keep = self.max_cache_size // 2
             items = list(self.ciphertext_cache.items())
             self.ciphertext_cache.clear()
-            
+
             for key, value in items[-items_to_keep:]:
                 self.ciphertext_cache[key] = value
 
