@@ -12,7 +12,7 @@ Repositório para o Trabalho de Conclusão de Curso (TCC) do curso de Tecnologia
 
 **Criptografia Homomórfica Aplicada em um Sistema de Eleição**
 
-Este projeto propõe a implementação de um sistema de eleição eletrônico que utiliza criptografia homomórfica para garantir a privacidade e a segurança dos votos, mesmo durante o processamento.
+Este projeto propõe o desenvolvimento de protótipo de sistema de eleição genérico eletrônico que utiliza criptografia totalmente homomórfica para garantir a privacidade e a segurança dos votos, mesmo durante o processamento.
 
 ---
 
@@ -45,15 +45,15 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 - [OpenFhe](https://openfhe.org/) – Biblioteca de criptografia homomórfica baseada no esquema BFV.
 
 ### Banco de Dados
-- [MySQL](https://www.mysql.com)
+- [SQLite](https://sqlite.org/)
 
 ---
 
 ## Ferramentas de Desenvolvimento
 - [Visual Studio Code](https://code.visualstudio.com) – Editor de código-fonte;
-- [MySQL Workbench](https://www.mysql.com/products/workbench) – Modelagem e administração do banco de dados;
-- [Figma](https://www.figma.com) – Protótipos de interface e fluxo de navegação;
-- [Mermaid](https://mermaid.js.org) – Diagramação de fluxos, sequências e arquitetura.
+- [Node.js](https://nodejs.org/pt) - Ambiente de Execução JavaScript;
+- [PlantUML](https://plantuml.com/) – Diagramação de fluxos, sequências e arquitetura;
+- [Oracle VirtualBox](https://www.virtualbox.org/) - Virtualização do Ambiente.
 
 ---
 
