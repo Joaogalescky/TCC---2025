@@ -85,13 +85,12 @@ async def cast_vote(
     )
 
     if not tally:
-        # Obter total de candidatos para criar tally inicial
+        # Criar tally inicial
         candidates_count = await session.scalar(
             select(func.count(Election_Candidate.id)).where(
                 Election_Candidate.fk_election == election_id
             )
         )
-
         encrypted_tally = crypto_service.create_zero_tally(candidates_count)
         tally = Election_Tally(
             fk_election=election_id,
@@ -99,6 +98,31 @@ async def cast_vote(
             total_candidates=candidates_count,
         )
         session.add(tally)
+    else:
+        # Se tally não existe no cache, cria ele
+        if tally.encrypted_tally not in crypto_service.ciphertext_cache:
+            encrypted_tally = crypto_service.create_zero_tally(tally.total_candidates)
+            
+            # Buscar todos os votos já registrados
+            existing_votes = await session.scalars(
+                select(Vote_Election)
+                .join(Election_Candidate)
+                .where(Election_Candidate.fk_election == election_id)
+            )
+            
+            # Somar todos os votos existentes
+            for existing_vote in existing_votes.all():
+                if existing_vote.encrypted_vote in crypto_service.ciphertext_cache:
+                    encrypted_tally = crypto_service.add_vote_to_tally(
+                        encrypted_tally, existing_vote.encrypted_vote
+                    )
+            
+            tally.encrypted_tally = encrypted_tally
+
+    # Somar voto ao tally
+    tally.encrypted_tally = crypto_service.add_vote_to_tally(
+        tally.encrypted_tally, encrypted_vote
+    )
 
     # Somar voto ao tally (soma homomórfica)
     tally.encrypted_tally = crypto_service.add_vote_to_tally(
