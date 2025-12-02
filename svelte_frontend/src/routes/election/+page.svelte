@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api, ApiError } from '../../lib/api';
-	import { auth, authActions } from '../../lib/stores/auth';
-	import { goto } from '$app/navigation';
+	import { browser } from "$app/environment";
+	import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
+	import { api, ApiError } from "../../lib/api";
+	import { auth, authActions } from "../../lib/stores/auth";
 
 	interface Election {
 		id: number;
@@ -22,15 +23,48 @@
 	let selectedElection: ElectionWithCandidates | null = null;
 	let loading = false;
 	let voting = false;
-	let message = '';
-	let messageType: 'success' | 'error' = 'success';
+	let message = "";
+	let messageType: "success" | "error" = "success";
 
 	$: if (!$auth.isAuthenticated) {
-		goto('/login');
+		goto("/login");
 	}
 
 	onMount(async () => {
 		await loadElections();
+
+		// Atualiza a cada 5s
+		const interval = setInterval(() => {
+			loadElections();
+
+			if (selectedElection) {
+				selectElection({
+					id: selectedElection.id,
+					title: selectedElection.title,
+				});
+			}
+		}, 5000);
+
+		if (browser) {
+			const handleVisibilityChange = () => {
+				if (document.visibilityState === "visible") {
+					loadElections();
+				}
+			};
+
+			document.addEventListener(
+				"visibilitychange",
+				handleVisibilityChange,
+			);
+			return () => {
+				clearInterval(interval); // Limpar intervalo ao sair
+				document.removeEventListener(
+					"visibilitychange",
+					handleVisibilityChange,
+				);
+			};
+		}
+		return () => clearInterval(interval);
 	});
 
 	async function loadElections() {
@@ -39,7 +73,7 @@
 			const response = await api.getElections();
 			elections = response.elections;
 		} catch (e) {
-			showMessage('Erro ao carregar eleições', 'error');
+			showMessage("Erro ao carregar eleições", "error");
 		} finally {
 			loading = false;
 		}
@@ -50,7 +84,7 @@
 		try {
 			selectedElection = await api.getElectionCandidates(election.id);
 		} catch (e) {
-			showMessage('Erro ao carregar candidatos', 'error');
+			showMessage("Erro ao carregar candidatos", "error");
 		} finally {
 			loading = false;
 		}
@@ -62,25 +96,26 @@
 		voting = true;
 		try {
 			await api.vote(selectedElection.id, candidateId);
-			showMessage('Voto registrado com sucesso!', 'success');
+			showMessage("Voto registrado com sucesso!", "success");
 			selectedElection = null;
 		} catch (e) {
-			const errorMsg = e instanceof ApiError ? e.message : 'Erro ao votar';
-			showMessage(errorMsg, 'error');
+			const errorMsg =
+				e instanceof ApiError ? e.message : "Erro ao votar";
+			showMessage(errorMsg, "error");
 		} finally {
 			voting = false;
 		}
 	}
 
-	function showMessage(text: string, type: 'success' | 'error') {
+	function showMessage(text: string, type: "success" | "error") {
 		message = text;
 		messageType = type;
-		setTimeout(() => message = '', 5000);
+		setTimeout(() => (message = ""), 5000);
 	}
 
 	function logout() {
 		authActions.logout();
-		goto('/login');
+		goto("/login");
 	}
 </script>
 
@@ -92,7 +127,9 @@
 					<h1 class="text-xl font-semibold">Sistema de Eleições</h1>
 				</div>
 				<div class="flex items-center space-x-4">
-					<span class="text-gray-700">Olá, {$auth.user?.username}</span>
+					<span class="text-gray-700"
+						>Olá, {$auth.user?.username}</span
+					>
 					<button
 						on:click={logout}
 						class="text-gray-500 hover:text-gray-700"
@@ -106,33 +143,46 @@
 
 	<main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
 		{#if message}
-			<div class="mb-4 p-4 rounded-md {messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+			<div
+				class="mb-4 p-4 rounded-md {messageType === 'success'
+					? 'bg-green-100 text-green-700'
+					: 'bg-red-100 text-red-700'}"
+			>
 				{message}
 			</div>
 		{/if}
 
 		{#if !selectedElection}
 			<div class="px-4 py-6 sm:px-0">
-				<h2 class="text-2xl font-bold text-gray-900 mb-6">Eleições Disponíveis</h2>
-				
+				<h2 class="text-2xl font-bold text-gray-900 mb-6">
+					Eleições Disponíveis
+				</h2>
+
 				{#if loading}
 					<div class="text-center py-8">
 						<div class="text-gray-500">Carregando eleições...</div>
 					</div>
 				{:else if elections.length === 0}
 					<div class="text-center py-8">
-						<div class="text-gray-500">Nenhuma eleição disponível</div>
+						<div class="text-gray-500">
+							Nenhuma eleição disponível
+						</div>
 					</div>
 				{:else}
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 						{#each elections as election}
-							<div class="bg-white overflow-hidden shadow rounded-lg">
+							<div
+								class="bg-white overflow-hidden shadow rounded-lg"
+							>
 								<div class="px-4 py-5 sm:p-6">
-									<h3 class="text-lg font-medium text-gray-900 mb-4">
+									<h3
+										class="text-lg font-medium text-gray-900 mb-4"
+									>
 										{election.title}
 									</h3>
 									<button
-										on:click={() => selectElection(election)}
+										on:click={() =>
+											selectElection(election)}
 										class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
 									>
 										Ver Candidatos
@@ -147,29 +197,39 @@
 			<div class="px-4 py-6 sm:px-0">
 				<div class="mb-6">
 					<button
-						on:click={() => selectedElection = null}
+						on:click={() => (selectedElection = null)}
 						class="text-blue-600 hover:text-blue-500"
 					>
 						← Voltar às eleições
 					</button>
 				</div>
 
-				<h2 class="text-2xl font-bold text-gray-900 mb-6">{selectedElection.title}</h2>
-				
+				<h2 class="text-2xl font-bold text-gray-900 mb-6">
+					{selectedElection.title}
+				</h2>
+
 				{#if loading}
 					<div class="text-center py-8">
-						<div class="text-gray-500">Carregando candidatos...</div>
+						<div class="text-gray-500">
+							Carregando candidatos...
+						</div>
 					</div>
 				{:else if selectedElection.candidates.length === 0}
 					<div class="text-center py-8">
-						<div class="text-gray-500">Nenhum candidato disponível</div>
+						<div class="text-gray-500">
+							Nenhum candidato disponível
+						</div>
 					</div>
 				{:else}
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 						{#each selectedElection.candidates as candidate}
-							<div class="bg-white overflow-hidden shadow rounded-lg">
+							<div
+								class="bg-white overflow-hidden shadow rounded-lg"
+							>
 								<div class="px-4 py-5 sm:p-6">
-									<h3 class="text-lg font-medium text-gray-900 mb-4">
+									<h3
+										class="text-lg font-medium text-gray-900 mb-4"
+									>
 										{candidate.username}
 									</h3>
 									<button
@@ -177,7 +237,7 @@
 										disabled={voting}
 										class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
 									>
-										{voting ? 'Votando...' : 'Votar'}
+										{voting ? "Votando..." : "Votar"}
 									</button>
 								</div>
 							</div>
