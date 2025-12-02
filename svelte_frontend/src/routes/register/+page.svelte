@@ -1,33 +1,40 @@
 <script lang="ts">
-	import { api, ApiError } from '../../lib/api';
-	import { goto } from '$app/navigation';
+	import { goto } from "$app/navigation";
+	import { authActions } from "$lib/stores/auth";
+	import { api, ApiError } from "../../lib/api";
 
-	let username = '';
-	let email = '';
-	let password = '';
-	let confirmPassword = '';
-	let error = '';
+	let username = "";
+	let email = "";
+	let password = "";
+	let confirmPassword = "";
+	let error = "";
 	let loading = false;
 
 	async function handleRegister() {
 		if (!username || !email || !password || !confirmPassword) {
-			error = 'Preencha todos os campos';
+			error = "Preencha todos os campos";
 			return;
 		}
 
 		if (password !== confirmPassword) {
-			error = 'Senhas não coincidem';
+			error = "Senhas não coincidem";
 			return;
 		}
 
 		loading = true;
-		error = '';
+		error = "";
 
 		try {
 			await api.register({ username, email, password });
-			goto('/login');
+			const loginResponse = await api.login(email, password);
+
+			if (loginResponse.access_token) {
+				const user = { id: 1, username, email, statusVotacao: false };
+				authActions.login(loginResponse.access_token, user);
+				goto("/election");
+			}
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : 'Erro no cadastro';
+			error = e instanceof ApiError ? e.message : "Erro no cadastro";
 		} finally {
 			loading = false;
 		}
@@ -44,49 +51,62 @@
 		<form class="mt-8 space-y-6" on:submit|preventDefault={handleRegister}>
 			<div class="space-y-4">
 				<div>
-					<label for="username" class="block text-sm font-medium text-gray-700"></label>
+					<label
+						for="username"
+						class="block text-sm font-medium text-gray-700"
+					></label>
 					<input
 						id="username"
 						type="text"
 						placeholder="Usuário"
-						minlength=4
-						maxlength=45
+						minlength="4"
+						maxlength="45"
 						bind:value={username}
 						required
 						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
 					/>
 				</div>
 				<div>
-					<label for="email" class="block text-sm font-medium text-gray-700"></label>
+					<label
+						for="email"
+						class="block text-sm font-medium text-gray-700"
+					></label>
 					<input
 						id="email"
 						type="email"
 						placeholder="E-mail"
 						bind:value={email}
-						on:input={(e) => email = e.currentTarget.value.toLowerCase()}
+						on:input={(e) =>
+							(email = e.currentTarget.value.toLowerCase())}
 						required
 						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
 					/>
 				</div>
 				<div>
-					<label for="password" class="block text-sm font-medium text-gray-700"></label>
+					<label
+						for="password"
+						class="block text-sm font-medium text-gray-700"
+					></label>
 					<input
 						id="password"
 						type="password"
 						placeholder="Senha"
-						minlength=6
+						minlength="6"
 						bind:value={password}
 						required
 						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
 					/>
 				</div>
 				<div>
-					<label for="confirmPassword" class="block text-sm font-medium text-gray-700"></label>
+					<label
+						for="confirmPassword"
+						class="block text-sm font-medium text-gray-700"
+					></label>
 					<input
 						id="confirmPassword"
 						type="password"
 						placeholder="Confirmar senha"
-						minlength=6
+						minlength="6"
 						bind:value={confirmPassword}
 						required
 						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -104,12 +124,16 @@
 					disabled={loading}
 					class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-base font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
 				>
-					{loading ? 'Cadastrando...' : 'Cadastrar'}
+					{loading ? "Cadastrando..." : "Cadastrar"}
 				</button>
 			</div>
 
 			<div class="text-center">
-				<a href="/login" class="text-blue-600 hover:text-blue-700 text-base">Já tem conta? Faça login</a>
+				<a
+					href="/login"
+					class="text-blue-600 hover:text-blue-700 text-base"
+					>Já tem conta? Faça login</a
+				>
 			</div>
 		</form>
 	</div>
