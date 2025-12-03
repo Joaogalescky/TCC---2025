@@ -33,38 +33,24 @@
 	onMount(async () => {
 		await loadElections();
 
-		// Atualiza a cada 5s
-		const interval = setInterval(() => {
-			loadElections();
-
-			if (selectedElection) {
-				selectElection({
-					id: selectedElection.id,
-					title: selectedElection.title,
-				});
-			}
-		}, 5000);
-
 		if (browser) {
-			const handleVisibilityChange = () => {
-				if (document.visibilityState === "visible") {
-					loadElections();
+			const eventSource = new EventSource(
+				"http://localhost:8000/events/elections",
+			);
+
+			eventSource.onmessage = () => {
+				loadElections();
+				if (selectedElection) {
+					selectElection({
+						id: selectedElection.id,
+						title: selectedElection.title,
+					});
 				}
 			};
-
-			document.addEventListener(
-				"visibilitychange",
-				handleVisibilityChange,
-			);
 			return () => {
-				clearInterval(interval); // Limpar intervalo ao sair
-				document.removeEventListener(
-					"visibilitychange",
-					handleVisibilityChange,
-				);
+				eventSource.close();
 			};
 		}
-		return () => clearInterval(interval);
 	});
 
 	async function loadElections() {

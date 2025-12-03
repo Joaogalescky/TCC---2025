@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.models import Candidate, Election, Election_Candidate
+from src.routers.events import notify_election_change
 from src.schemas import (
     CandidatePublic,
     ElectionList,
@@ -31,6 +32,7 @@ async def create_election(
     session.add(db_election)
     await session.commit()
     await session.refresh(db_election)
+    await notify_election_change()
 
     return db_election
 
@@ -70,6 +72,7 @@ async def update_election(
         db_election.title = election.title
         await session.commit()
         await session.refresh(db_election)
+        await notify_election_change()
 
         return db_election
 
@@ -92,6 +95,7 @@ async def delete_election(
 
     await session.delete(db_election)
     await session.commit()
+    await notify_election_change()
 
     return {'message': 'Election deleted'}
 
@@ -133,6 +137,7 @@ async def add_candidate_to_election(
     )
     session.add(db_election_candidate)
     await session.commit()
+    await notify_election_change()
 
     candidates_query = await session.scalars(
         select(Candidate)

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.models import Candidate
+from src.routers.events import notify_election_change
 from src.schemas import (
     CandidateList,
     CandidatePublic,
@@ -39,6 +40,7 @@ async def create_candidate(candidate: CandidateSchema, session: Session):
     session.add(db_candidate)
     await session.commit()
     await session.refresh(db_candidate)
+    await notify_election_change()
 
     return db_candidate
 
@@ -50,6 +52,7 @@ async def get_candidates(
     query = await session.scalars(
         select(Candidate).offset(filter_candidates.offset).limit(filter_candidates.limit)
     )
+    await notify_election_change()
     candidates = query.all()
     return {'candidates': candidates}
 
@@ -59,6 +62,7 @@ async def get_candidate_by_id(candidate_id: int, session: Session):
     db_candidate = await session.scalar(
         select(Candidate).where(Candidate.id == candidate_id)
     )
+    await notify_election_change()
     if not db_candidate:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='Candidate not found'
@@ -84,6 +88,7 @@ async def update_candidate(
         db_candidate.username = candidate.username
         await session.commit()
         await session.refresh(db_candidate)
+        await notify_election_change()
 
         return db_candidate
 
@@ -109,5 +114,6 @@ async def delete_candidate(
 
     await session.delete(db_candidate)
     await session.commit()
+    await notify_election_change()
 
     return {'message': 'Candidate deleted'}
