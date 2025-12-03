@@ -42,7 +42,7 @@ export const api = {
 		}),
 
 	// Elections
-	getElections: () => request('/elections'),
+	getElections: () => request('/elections?limit=100'),
 	getElectionCandidates: (id: number) => request(`/elections/${id}/candidates`),
 	
 	// Voting
