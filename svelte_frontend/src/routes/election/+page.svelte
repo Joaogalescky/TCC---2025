@@ -4,6 +4,7 @@
 	import { onMount } from "svelte";
 	import { api, ApiError } from "../../lib/api";
 	import { auth, authActions } from "../../lib/stores/auth";
+	import Toast from "$lib/components/Toast.svelte";
 
 	interface Election {
 		id: number;
@@ -106,9 +107,9 @@
 </script>
 
 <div class="min-h-screen bg-gray-50">
-	<nav class="bg-white shadow">
+	<nav class="bg-white shadow sticky top-0 z-50">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="flex justify-between h-16">
+			<div class="flex justify-between h-16 ">
 				<div class="flex items-center">
 					<h1 class="text-xl font-semibold">Sistema de Eleições</h1>
 				</div>
@@ -118,7 +119,7 @@
 					>
 					<button
 						on:click={logout}
-						class="text-gray-500 hover:text-gray-700"
+						class="text-gray-500 hover:text-gray-700 font-bold"
 					>
 						Sair
 					</button>
@@ -127,16 +128,9 @@
 		</div>
 	</nav>
 
+	<Toast {message} type={messageType} />
+
 	<main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-		{#if message}
-			<div
-				class="mb-4 p-4 rounded-md {messageType === 'success'
-					? 'bg-green-100 text-green-700'
-					: 'bg-red-100 text-red-700'}"
-			>
-				{message}
-			</div>
-		{/if}
 
 		{#if !selectedElection}
 			<div class="px-4 py-6 sm:px-0">
