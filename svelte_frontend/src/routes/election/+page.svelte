@@ -27,7 +27,7 @@
 	let message = "";
 	let messageType: "success" | "error" = "success";
 
-	$: if (!$auth.isAuthenticated) {
+	$: if (browser && !$auth.isAuthenticated) {
 		goto("/login");
 	}
 
@@ -109,7 +109,7 @@
 <div class="min-h-screen bg-gray-50">
 	<nav class="bg-white shadow sticky top-0 z-50">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="flex justify-between h-16 ">
+			<div class="flex justify-between h-16">
 				<div class="flex items-center">
 					<h1 class="text-xl font-semibold">Sistema de Eleições</h1>
 				</div>
@@ -131,7 +131,6 @@
 	<Toast {message} type={messageType} />
 
 	<main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-
 		{#if !selectedElection}
 			<div class="px-4 py-6 sm:px-0">
 				<h2 class="text-2xl font-bold text-gray-900 mb-6">
