@@ -156,7 +156,7 @@ class HomomorphicElectionService:
             raise ValueError(f'Encrypted tally {encrypted_tally} not found in cache')
         if encrypted_vote not in self.ciphertext_cache:
             raise ValueError(f'Encrypted vote {encrypted_vote} not found in cache')
-        
+
         # Recuperar ciphertexts do cache
         ct_tally = self.ciphertext_cache[encrypted_tally]
         ct_vote = self.ciphertext_cache[encrypted_vote]
