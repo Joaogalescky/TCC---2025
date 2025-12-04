@@ -1,0 +1,93 @@
+{
+  "test_type": "massive_stress",
+  "results": {
+    "100": {
+      "success": true,
+      "metrics": {
+        "duration": 0.3259022870006447,
+        "processing_only_s": 0.3250706649996573,
+        "encrypt_total_s": 0.3081107329981023,
+        "evaladd_total_s": 0.004228156994940946,
+        "decrypt_s": 0.0008316220009874087,
+        "avg_encrypt_ms": 3.081107329981023,
+        "avg_evaladd_ms": 0.04228156994940946,
+        "votes_per_second": 307.6254204608263,
+        "memory_used": 75.75,
+        "initial_memory": 51.30859375,
+        "final_memory": 51.5625,
+        "cpu_percent": 296.4,
+        "cpu_time_s": 1.0
+      },
+      "final_results": [
+        17,
+        17,
+        17,
+        17,
+        16,
+        16
+      ],
+      "error": null
+    },
+    "1000": {
+      "success": true,
+      "metrics": {
+        "duration": 2.9817633379989275,
+        "processing_only_s": 2.98103269800049,
+        "encrypt_total_s": 2.9172890070422,
+        "evaladd_total_s": 0.048184165976635995,
+        "decrypt_s": 0.0007306399984372547,
+        "avg_encrypt_ms": 2.9172890070422,
+        "avg_evaladd_ms": 0.048184165976635995,
+        "votes_per_second": 335.45422050242655,
+        "memory_used": 376.125,
+        "initial_memory": 53.1875,
+        "final_memory": 400.7265625,
+        "cpu_percent": 299.6,
+        "cpu_time_s": 8.969999999999999
+      },
+      "final_results": [
+        167,
+        167,
+        167,
+        167,
+        166,
+        166
+      ],
+      "error": null
+    },
+    "10000": {
+      "success": true,
+      "metrics": {
+        "duration": 28.27464591500211,
+        "processing_only_s": 28.27372416000071,
+        "encrypt_total_s": 27.74472914603939,
+        "evaladd_total_s": 0.4726248050283175,
+        "decrypt_s": 0.0009217550014000153,
+        "avg_encrypt_ms": 2.774472914603939,
+        "avg_evaladd_ms": 0.047262480502831744,
+        "votes_per_second": 353.68527836694255,
+        "memory_used": 30.34375,
+        "initial_memory": 400.22265625,
+        "final_memory": 426.25,
+        "cpu_percent": 298.6,
+        "cpu_time_s": 84.46
+      },
+      "final_results": [
+        1667,
+        1667,
+        1667,
+        1667,
+        1666,
+        1666
+      ],
+      "error": null
+    }
+  },
+  "summary": {
+    "max_successful": 10000,
+    "total_tests": 3,
+    "successful_tests": 3,
+    "failed_tests": 0,
+    "generated_at": "2025-12-04 13:55:21"
+  }
+}

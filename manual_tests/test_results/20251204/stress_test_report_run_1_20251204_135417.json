@@ -1,0 +1,93 @@
+{
+  "test_type": "massive_stress",
+  "results": {
+    "100": {
+      "success": true,
+      "metrics": {
+        "duration": 0.3330709809979453,
+        "processing_only_s": 0.33221458199841436,
+        "encrypt_total_s": 0.3159191599988844,
+        "evaladd_total_s": 0.0042037479961436475,
+        "decrypt_s": 0.0008563989995309385,
+        "avg_encrypt_ms": 3.1591915999888442,
+        "avg_evaladd_ms": 0.042037479961436475,
+        "votes_per_second": 301.0102669138024,
+        "memory_used": 75.75,
+        "initial_memory": 51.390625,
+        "final_memory": 51.64453125,
+        "cpu_percent": 300.9,
+        "cpu_time_s": 1.04
+      },
+      "final_results": [
+        17,
+        17,
+        17,
+        17,
+        16,
+        16
+      ],
+      "error": null
+    },
+    "1000": {
+      "success": true,
+      "metrics": {
+        "duration": 3.059263478999128,
+        "processing_only_s": 3.0564079159994435,
+        "encrypt_total_s": 2.9853286760117044,
+        "evaladd_total_s": 0.045393861040793126,
+        "decrypt_s": 0.00285556299968448,
+        "avg_encrypt_ms": 2.9853286760117044,
+        "avg_evaladd_ms": 0.045393861040793126,
+        "votes_per_second": 327.18145858911004,
+        "memory_used": 376.125,
+        "initial_memory": 53.26953125,
+        "final_memory": 400.80859375,
+        "cpu_percent": 298.6,
+        "cpu_time_s": 9.169999999999998
+      },
+      "final_results": [
+        167,
+        167,
+        167,
+        167,
+        166,
+        166
+      ],
+      "error": null
+    },
+    "10000": {
+      "success": true,
+      "metrics": {
+        "duration": 28.7855524229999,
+        "processing_only_s": 28.773823999999877,
+        "encrypt_total_s": 28.215556173890946,
+        "evaladd_total_s": 0.49799023002378817,
+        "decrypt_s": 0.011728423000022303,
+        "avg_encrypt_ms": 2.8215556173890946,
+        "avg_evaladd_ms": 0.04979902300237882,
+        "votes_per_second": 347.53809573590365,
+        "memory_used": 30.375,
+        "initial_memory": 400.3046875,
+        "final_memory": 428.51171875,
+        "cpu_percent": 295.9,
+        "cpu_time_s": 85.2
+      },
+      "final_results": [
+        1667,
+        1667,
+        1667,
+        1667,
+        1666,
+        1666
+      ],
+      "error": null
+    }
+  },
+  "summary": {
+    "max_successful": 10000,
+    "total_tests": 3,
+    "successful_tests": 3,
+    "failed_tests": 0,
+    "generated_at": "2025-12-04 13:54:17"
+  }
+}
