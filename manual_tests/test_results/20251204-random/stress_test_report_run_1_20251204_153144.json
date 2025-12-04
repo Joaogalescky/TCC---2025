@@ -1,0 +1,359 @@
+{
+  "test_type": "massive_stress_mixed_candidates",
+  "results": {
+    "100_6": {
+      "vote_count": 100,
+      "num_candidates": 6,
+      "success": true,
+      "metrics": {
+        "duration": 0.3686328920048254,
+        "processing_only_s": 0.34848212400174816,
+        "encrypt_total_s": 0.32816912498674355,
+        "evaladd_total_s": 0.006699152992950985,
+        "decrypt_s": 0.020150768003077246,
+        "avg_encrypt_ms": 3.2816912498674355,
+        "avg_evaladd_ms": 0.06699152992950985,
+        "votes_per_second": 286.95876520627024,
+        "memory_used": 75.75,
+        "initial_memory": 51.421875,
+        "final_memory": 51.59375,
+        "cpu_percent": 282.6,
+        "cpu_time_s": 1.08
+      },
+      "final_results": [
+        17,
+        17,
+        17,
+        17,
+        16,
+        16
+      ],
+      "error": null
+    },
+    "65000_3": {
+      "vote_count": 65000,
+      "num_candidates": 3,
+      "success": true,
+      "metrics": {
+        "duration": 186.66860696300137,
+        "processing_only_s": 186.66756596900086,
+        "encrypt_total_s": 183.11593453497335,
+        "evaladd_total_s": 3.329109587262792,
+        "decrypt_s": 0.0010409940005047247,
+        "avg_encrypt_ms": 2.8171682236149747,
+        "avg_evaladd_ms": 0.051217070573273724,
+        "votes_per_second": 348.21260813351097,
+        "memory_used": 376.375,
+        "initial_memory": 53.40234375,
+        "final_memory": 410.82421875,
+        "cpu_percent": 296.3,
+        "cpu_time_s": 553.15
+      },
+      "final_results": [
+        21667,
+        21667,
+        21666
+      ],
+      "error": null
+    },
+    "1000_9": {
+      "vote_count": 1000,
+      "num_candidates": 9,
+      "success": true,
+      "metrics": {
+        "duration": 2.84017643399784,
+        "processing_only_s": 2.839273713998409,
+        "encrypt_total_s": 2.7749199010395387,
+        "evaladd_total_s": 0.04234091999751399,
+        "decrypt_s": 0.0009027199994307011,
+        "avg_encrypt_ms": 2.7749199010395387,
+        "avg_evaladd_ms": 0.04234091999751399,
+        "votes_per_second": 352.20274645227823,
+        "memory_used": 45.625,
+        "initial_memory": 384.95703125,
+        "final_memory": 426.1171875,
+        "cpu_percent": 297.7,
+        "cpu_time_s": 8.479999999999905
+      },
+      "final_results": [
+        112,
+        111,
+        111,
+        111,
+        111,
+        111,
+        111,
+        111,
+        111
+      ],
+      "error": null
+    },
+    "10000_3": {
+      "vote_count": 10000,
+      "num_candidates": 3,
+      "success": true,
+      "metrics": {
+        "duration": 28.05219642099837,
+        "processing_only_s": 28.050897256998724,
+        "encrypt_total_s": 27.542860655918048,
+        "evaladd_total_s": 0.4559185411708313,
+        "decrypt_s": 0.001299163999647135,
+        "avg_encrypt_ms": 2.754286065591805,
+        "avg_evaladd_ms": 0.04559185411708313,
+        "votes_per_second": 356.4948353837413,
+        "memory_used": 6.25,
+        "initial_memory": 425.6875,
+        "final_memory": 425.8125,
+        "cpu_percent": 299.3,
+        "cpu_time_s": 83.99000000000001
+      },
+      "final_results": [
+        3334,
+        3333,
+        3333
+      ],
+      "error": null
+    },
+    "10000_6": {
+      "vote_count": 10000,
+      "num_candidates": 6,
+      "success": true,
+      "metrics": {
+        "duration": 31.37650670700168,
+        "processing_only_s": 31.374931217000267,
+        "encrypt_total_s": 30.81007304394734,
+        "evaladd_total_s": 0.5080058030071086,
+        "decrypt_s": 0.0015754900014144368,
+        "avg_encrypt_ms": 3.081007304394734,
+        "avg_evaladd_ms": 0.05080058030071086,
+        "votes_per_second": 318.7257983399682,
+        "memory_used": 6.75,
+        "initial_memory": 426.1875,
+        "final_memory": 426.15625,
+        "cpu_percent": 298.3,
+        "cpu_time_s": 93.62
+      },
+      "final_results": [
+        1667,
+        1667,
+        1667,
+        1667,
+        1666,
+        1666
+      ],
+      "error": null
+    },
+    "10000_9": {
+      "vote_count": 10000,
+      "num_candidates": 9,
+      "success": true,
+      "metrics": {
+        "duration": 37.008677295998496,
+        "processing_only_s": 37.00785942099901,
+        "encrypt_total_s": 36.35252539899011,
+        "evaladd_total_s": 0.5718229029189388,
+        "decrypt_s": 0.0008178749994840473,
+        "avg_encrypt_ms": 3.635252539899011,
+        "avg_evaladd_ms": 0.05718229029189388,
+        "votes_per_second": 270.2128725209596,
+        "memory_used": 7.625,
+        "initial_memory": 426.53125,
+        "final_memory": 426.546875,
+        "cpu_percent": 297.6,
+        "cpu_time_s": 110.17000000000002
+      },
+      "final_results": [
+        1112,
+        1111,
+        1111,
+        1111,
+        1111,
+        1111,
+        1111,
+        1111,
+        1111
+      ],
+      "error": null
+    },
+    "100_3": {
+      "vote_count": 100,
+      "num_candidates": 3,
+      "success": true,
+      "metrics": {
+        "duration": 0.5067734780022874,
+        "processing_only_s": 0.5056074090025504,
+        "encrypt_total_s": 0.4783915530242666,
+        "evaladd_total_s": 0.00624465199871338,
+        "decrypt_s": 0.0011660689997370355,
+        "avg_encrypt_ms": 4.783915530242666,
+        "avg_evaladd_ms": 0.0624465199871338,
+        "votes_per_second": 197.78191185385808,
+        "memory_used": 0.0,
+        "initial_memory": 426.921875,
+        "final_memory": 426.921875,
+        "cpu_percent": 277.9,
+        "cpu_time_s": 1.4300000000000637
+      },
+      "final_results": [
+        34,
+        33,
+        33
+      ],
+      "error": null
+    },
+    "65000_9": {
+      "vote_count": 65000,
+      "num_candidates": 9,
+      "success": true,
+      "metrics": {
+        "duration": 234.50250433300243,
+        "processing_only_s": 234.50135602999944,
+        "encrypt_total_s": 230.5904556757123,
+        "evaladd_total_s": 3.634921154301992,
+        "decrypt_s": 0.0011483030029921792,
+        "avg_encrypt_ms": 3.5475454719340354,
+        "avg_evaladd_ms": 0.05592186391233834,
+        "votes_per_second": 277.1838982103141,
+        "memory_used": 9.47265625,
+        "initial_memory": 427.171875,
+        "final_memory": 427.359375,
+        "cpu_percent": 299.4,
+        "cpu_time_s": 702.2099999999999
+      },
+      "final_results": [
+        7223,
+        7223,
+        7222,
+        7222,
+        7222,
+        7222,
+        7222,
+        7222,
+        7222
+      ],
+      "error": null
+    },
+    "65000_6": {
+      "vote_count": 65000,
+      "num_candidates": 6,
+      "success": true,
+      "metrics": {
+        "duration": 235.61832031599624,
+        "processing_only_s": 235.6171854059976,
+        "encrypt_total_s": 231.44632356927104,
+        "evaladd_total_s": 3.9051983632416523,
+        "decrypt_s": 0.0011349099986546207,
+        "avg_encrypt_ms": 3.560712670296478,
+        "avg_evaladd_ms": 0.06007997481910234,
+        "votes_per_second": 275.8712183408734,
+        "memory_used": 9.90234375,
+        "initial_memory": 427.734375,
+        "final_memory": 427.7265625,
+        "cpu_percent": 299.5,
+        "cpu_time_s": 705.7899999999997
+      },
+      "final_results": [
+        10834,
+        10834,
+        10833,
+        10833,
+        10833,
+        10833
+      ],
+      "error": null
+    },
+    "100_9": {
+      "vote_count": 100,
+      "num_candidates": 9,
+      "success": true,
+      "metrics": {
+        "duration": 0.49168871300207684,
+        "processing_only_s": 0.48745611000049394,
+        "encrypt_total_s": 0.45795828798873117,
+        "evaladd_total_s": 0.012031653011945309,
+        "decrypt_s": 0.004232603001582902,
+        "avg_encrypt_ms": 4.579582879887312,
+        "avg_evaladd_ms": 0.12031653011945309,
+        "votes_per_second": 205.14667464092034,
+        "memory_used": 0.0,
+        "initial_memory": 428.1015625,
+        "final_memory": 428.1015625,
+        "cpu_percent": 283.2,
+        "cpu_time_s": 1.4100000000003092
+      },
+      "final_results": [
+        12,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11
+      ],
+      "error": null
+    },
+    "1000_3": {
+      "vote_count": 1000,
+      "num_candidates": 3,
+      "success": true,
+      "metrics": {
+        "duration": 3.8773663159954594,
+        "processing_only_s": 3.876214201998664,
+        "encrypt_total_s": 3.800005619021249,
+        "evaladd_total_s": 0.058014068847114686,
+        "decrypt_s": 0.0011521139967953786,
+        "avg_encrypt_ms": 3.800005619021249,
+        "avg_evaladd_ms": 0.058014068847114686,
+        "votes_per_second": 257.98367889070147,
+        "memory_used": 11.375,
+        "initial_memory": 428.4765625,
+        "final_memory": 436.8203125,
+        "cpu_percent": 295.7,
+        "cpu_time_s": 11.5
+      },
+      "final_results": [
+        334,
+        333,
+        333
+      ],
+      "error": null
+    },
+    "1000_6": {
+      "vote_count": 1000,
+      "num_candidates": 6,
+      "success": true,
+      "metrics": {
+        "duration": 3.6867145110009005,
+        "processing_only_s": 3.6856057920012972,
+        "encrypt_total_s": 3.6099000549329503,
+        "evaladd_total_s": 0.05657175706437556,
+        "decrypt_s": 0.0011087189996032976,
+        "avg_encrypt_ms": 3.6099000549329503,
+        "avg_evaladd_ms": 0.05657175706437556,
+        "votes_per_second": 271.3258162797157,
+        "memory_used": 3.875,
+        "initial_memory": 437.1953125,
+        "final_memory": 437.25390625,
+        "cpu_percent": 295.3,
+        "cpu_time_s": 10.929999999999836
+      },
+      "final_results": [
+        167,
+        167,
+        167,
+        167,
+        166,
+        166
+      ],
+      "error": null
+    }
+  },
+  "summary": {
+    "total_tests": 12,
+    "successful_tests": 12,
+    "failed_tests": 0,
+    "generated_at": "2025-12-04 15:31:44"
+  }
+}
