@@ -8,6 +8,29 @@ Repositório para o Trabalho de Conclusão de Curso (TCC) do curso de Tecnologia
 
 ---
 
+## Início Rápido
+
+**Para pesquisadores e estudantes:** Este projeto está totalmente dockerizado para facilitar a continuidade da pesquisa.
+
+```bash
+# 1. Clone o repositório
+git clone <url-do-repositorio>
+cd TCC---2025
+
+# 2. Verifique o ambiente
+./check-environment.sh
+
+# 3. Configure e inicie
+cp .env.example .env
+make docker-up
+
+# 4. Acesse http://localhost:3000
+```
+
+**Documentação completa:** [QUICKSTART.md](QUICKSTART.md) | [DOCKER.md](DOCKER.md)
+
+---
+
 ## Tema
 
 **Criptografia Homomórfica Aplicada em um Sistema de Eleição**
@@ -32,8 +55,8 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 ## Tecnologias Utilizadas
 
 ### Frameworks
-- [Svelte](https://svelte.dev) – Interface da aplicação;
-- [FastAPI](https://fastapi.tiangolo.com) – Back-end.
+- [Svelte](https://svelte.dev) – Front-End;
+- [FastAPI](https://fastapi.tiangolo.com) – Back-End.
 
 ### Linguagens
 - JavaScript;
@@ -42,24 +65,115 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 - SQL.
 
 ### Bibliotecas e Dependências
-- [OpenFhe](https://openfhe.org/) – Biblioteca de criptografia homomórfica baseada no esquema BFV.
+- [OpenFHE](https://openfhe.org/) – Biblioteca de criptografia homomórfica baseada no esquema BFV.
 
 ### Banco de Dados
-- [MySQL](https://www.mysql.com)
+- [SQLite](https://sqlite.org/)
 
 ---
 
 ## Ferramentas de Desenvolvimento
 - [Visual Studio Code](https://code.visualstudio.com) – Editor de código-fonte;
-- [MySQL Workbench](https://www.mysql.com/products/workbench) – Modelagem e administração do banco de dados;
-- [Figma](https://www.figma.com) – Protótipos de interface e fluxo de navegação;
-- [Mermaid](https://mermaid.js.org) – Diagramação de fluxos, sequências e arquitetura.
+- [MySQL Workbench](https://www.mysql.com/products/workbench) – Modelagem;
+- [Beekeper Studio](https://www.beekeeperstudio.io/pt-br/) - Administração do banco de dados SQL;
+- [PlantUML](https://plantuml.com/) - Diagramação.
 
 ---
 
 ## Esquema Criptográfico
 
 - **BFV (Brakerski-Fan-Vercauteren):** Esquema de criptografia homomórfica que permite operações de adição e multiplicação sobre dados criptografados.
+
+---
+
+## Como Executar o Projeto
+
+### Opção 1: Usando Docker (Recomendado)
+
+#### Pré-requisitos
+- [Docker](https://docs.docker.com/get-docker/) 20.10+
+- [Docker Compose](https://docs.docker.com/compose/install/) 2.0+
+
+#### Passos para Execução
+
+1. **Clone o repositório:**
+```bash
+git clone <url-do-repositorio>
+cd TCC---2025
+```
+
+2. **Configure as variáveis de ambiente:**
+```bash
+cp .env.example .env
+# Edite o arquivo .env conforme necessário
+```
+
+3. **Inicie os containers:**
+```bash
+make docker-build
+make docker-up
+```
+
+Ou diretamente:
+```bash
+docker-compose up --build -d
+```
+
+4. **Acesse a aplicação:**
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:8000
+- **Documentação da API:** http://localhost:8000/docs
+- **MySQL:** localhost:3306
+
+#### Comandos Úteis
+
+```bash
+# Ver logs dos containers
+make docker-logs
+
+# Parar os containers
+make docker-down
+
+# Reiniciar os containers
+make docker-restart
+
+# Ver status dos containers
+make docker-ps
+
+# Limpar containers e volumes
+make docker-clean
+```
+
+### Opção 2: Instalação Local
+
+#### Backend (FastAPI)
+
+1. **Instale as dependências:**
+```bash
+cd fast_backend
+pip install poetry
+poetry install
+```
+
+2. **Configure o banco de dados e variáveis de ambiente**
+
+3. **Execute o servidor:**
+```bash
+poetry run fastapi dev src/app.py
+```
+
+#### Frontend (Svelte)
+
+1. **Instale as dependências:**
+```bash
+cd svelte_frontend
+npm install
+```
+
+2. **Execute o servidor de desenvolvimento:**
+```bash
+npm run dev
+```
 
 ---
 

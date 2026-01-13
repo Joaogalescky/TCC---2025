@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./fast_backend
+      dockerfile: Dockerfile
+    container_name: eleicao_backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///database.db}
+      SECRET_KEY: ${SECRET_KEY:-f6.1L5Q:|&r*4n#Xy/,IEO/B/"G6jn}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      PLAINTEXT_MODULUS: ${PLAINTEXT_MODULUS:-65537}
+      MULTIPLICATIVE_DEPTH: ${MULTIPLICATIVE_DEPTH:-2}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fast_backend/database.db:/app/database.db
+    networks:
+      - eleicao_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./svelte_frontend
+      dockerfile: Dockerfile
+    container_name: eleicao_frontend
+    environment:
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - eleicao_network
+    restart: unless-stopped
+
+networks:
+  eleicao_network:
+    driver: bridge
