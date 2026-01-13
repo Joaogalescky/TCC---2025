@@ -1,0 +1,108 @@
+{
+  "test_type": "massive_stress",
+  "results": {
+    "100": {
+      "success": true,
+      "metrics": {
+        "duration": 0.5556914609996966,
+        "processing_only_s": 0.5491603109994685,
+        "encrypt_total_s": 0.5094779769979141,
+        "evaladd_total_s": 0.00765645199771825,
+        "decrypt_s": 0.006531150000228081,
+        "avg_encrypt_ms": 5.094779769979141,
+        "avg_evaladd_ms": 0.0765645199771825,
+        "votes_per_second": 182.09618939504313,
+        "memory_used": 75.75,
+        "initial_memory": 51.20703125,
+        "final_memory": 51.40234375,
+        "cpu_percent": 277.2,
+        "cpu_time_s": 1.58
+      },
+      "final_results": [
+        34,
+        33,
+        33
+      ],
+      "error": null
+    },
+    "1000": {
+      "success": true,
+      "metrics": {
+        "duration": 4.565226188000452,
+        "processing_only_s": 4.564101472999937,
+        "encrypt_total_s": 4.44031259399344,
+        "evaladd_total_s": 0.09201972100981948,
+        "decrypt_s": 0.0011247150005146977,
+        "avg_encrypt_ms": 4.44031259399344,
+        "avg_evaladd_ms": 0.09201972100981948,
+        "votes_per_second": 219.10117597422968,
+        "memory_used": 376.125,
+        "initial_memory": 53.02734375,
+        "final_memory": 413.4140625,
+        "cpu_percent": 294.5,
+        "cpu_time_s": 13.49
+      },
+      "final_results": [
+        334,
+        333,
+        333
+      ],
+      "error": null
+    },
+    "10000": {
+      "success": true,
+      "metrics": {
+        "duration": 39.43162273800044,
+        "processing_only_s": 39.43010388499988,
+        "encrypt_total_s": 38.68344361601066,
+        "evaladd_total_s": 0.6778714260281049,
+        "decrypt_s": 0.0015188530005616485,
+        "avg_encrypt_ms": 3.8683443616010664,
+        "avg_evaladd_ms": 0.06778714260281049,
+        "votes_per_second": 253.61333130558225,
+        "memory_used": 17.375,
+        "initial_memory": 412.94921875,
+        "final_memory": 413.00390625,
+        "cpu_percent": 298.6,
+        "cpu_time_s": 117.77
+      },
+      "final_results": [
+        3334,
+        3333,
+        3333
+      ],
+      "error": null
+    },
+    "65000": {
+      "success": true,
+      "metrics": {
+        "duration": 251.75491178100037,
+        "processing_only_s": 251.7537176300002,
+        "encrypt_total_s": 247.12674562814755,
+        "evaladd_total_s": 4.350989422143357,
+        "decrypt_s": 0.0011941510001634015,
+        "avg_encrypt_ms": 3.801949932740732,
+        "avg_evaladd_ms": 0.06693829880220549,
+        "votes_per_second": 258.1888387266234,
+        "memory_used": 18.5,
+        "initial_memory": 413.25390625,
+        "final_memory": 413.50390625,
+        "cpu_percent": 299.8,
+        "cpu_time_s": 754.72
+      },
+      "final_results": [
+        21667,
+        21667,
+        21666
+      ],
+      "error": null
+    }
+  },
+  "summary": {
+    "max_successful": 65000,
+    "total_tests": 4,
+    "successful_tests": 4,
+    "failed_tests": 0,
+    "generated_at": "2025-11-25 15:39:54"
+  }
+}
