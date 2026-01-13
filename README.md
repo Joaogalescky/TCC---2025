@@ -27,7 +27,7 @@ make docker-up
 # 4. Acesse http://localhost:3000
 ```
 
-**Documentação completa:** [QUICKSTART.md](QUICKSTART.md) | [DOCKER.md](DOCKER.md)
+**Documentação:** [DOCKER.md](DOCKER.md)
 
 ---
 
