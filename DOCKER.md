@@ -12,18 +12,13 @@
 git clone <url-do-repositorio>
 cd TCC---2025
 
-# 2. Configurar variáveis
+# 2. Configurar variáveis (troque o SECRET_KEY no .env)
 cp .env.example .env
 
-# 3. Instalar adapter-node no frontend
-cd svelte_frontend
-npm install @sveltejs/adapter-node
-cd ..
+# 3. Iniciar containers
+docker compose up --build -d
 
-# 4. Iniciar containers
-docker-compose up --build -d
-
-# 5. Acessar aplicação
+# 4. Acessar aplicação
 # Frontend: http://localhost:3000
 # Backend: http://localhost:8000
 # API Docs: http://localhost:8000/docs
@@ -33,27 +28,27 @@ docker-compose up --build -d
 
 ### Iniciar
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Parar
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Ver logs
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### Rebuild
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 ### Limpar tudo
 ```bash
-docker-compose down -v
+docker compose down -v
 docker system prune -a
 ```
 
@@ -62,7 +57,7 @@ docker system prune -a
 ```
 TCC---2025/
 ├── fast_backend/
-│   ├── Dockerfile          # Container Python + FastAPI + OpenFHE
+│   ├── Dockerfile          # Container Python 3.12 + FastAPI + OpenFHE
 │   └── src/
 ├── svelte_frontend/
 │   ├── Dockerfile          # Container Node + Svelte
@@ -88,7 +83,7 @@ Edite `.env` conforme necessário:
 ```bash
 # Backend
 DATABASE_URL=sqlite+aiosqlite:///database.db
-SECRET_KEY=sua-chave-secreta
+SECRET_KEY=troque-por-uma-chave-secreta
 PLAINTEXT_MODULUS=65537
 MULTIPLICATIVE_DEPTH=2
 
@@ -108,18 +103,21 @@ ports:
 
 ### Container não inicia
 ```bash
-docker-compose logs backend
-docker-compose logs frontend
+docker compose logs backend
+docker compose logs frontend
 ```
 
 ### Rebuild sem cache
 ```bash
-docker-compose build --no-cache
-docker-compose up -d
+docker compose build --no-cache
+docker compose up -d
 ```
 
-### OpenFHE demora no primeiro build
-O primeiro build do backend pode demorar 5-10 minutos devido à compilação do OpenFHE. Isso é normal.
+### Erro `No module named 'openfhe.openfhe'`
+O pacote `openfhe` do PyPI é compilado para Ubuntu 24.04 / Python 3.12, apesar de ser publicado como `py3-none-any`. Por isso a imagem do backend usa `python:3.12-slim-trixie` (Python 3.12 e glibc >= 2.39). Não altere a versão do Python sem verificar a compatibilidade do OpenFHE.
+
+### Erro `Defina SECRET_KEY no arquivo .env`
+O arquivo `.env` não existe ou não define `SECRET_KEY`. Execute `cp .env.example .env` e defina uma chave.
 
 ## Desenvolvimento
 

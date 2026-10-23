@@ -125,7 +125,7 @@ votos (
 ## Configuração e Execução
 
 ### Pré-requisitos
-- Python 3.13+
+- Python 3.12 (exigido pelo pacote OpenFHE do PyPI)
 - Poetry (gerenciador de dependências)
 - OpenFHE (biblioteca criptográfica)
 

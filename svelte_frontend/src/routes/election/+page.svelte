@@ -2,7 +2,7 @@
 	import { browser } from "$app/environment";
 	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
-	import { api, ApiError } from "../../lib/api";
+	import { api, ApiError, API_BASE } from "../../lib/api";
 	import { auth, authActions } from "../../lib/stores/auth";
 	import Toast from "$lib/components/Toast.svelte";
 
@@ -36,7 +36,7 @@
 
 		if (browser) {
 			const eventSource = new EventSource(
-				"http://localhost:8000/events/elections",
+				`${API_BASE}/events/elections`,
 			);
 
 			eventSource.onmessage = () => {

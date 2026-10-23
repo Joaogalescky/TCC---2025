@@ -116,14 +116,13 @@ make docker-up
 
 Ou diretamente:
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 4. **Acesse a aplicação:**
 - **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:8000
 - **Documentação da API:** http://localhost:8000/docs
-- **MySQL:** localhost:3306
 
 #### Comandos Úteis
 

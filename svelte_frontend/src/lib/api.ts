@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:8000';
+import { env } from '$env/dynamic/public';
+
+export const API_BASE = env.PUBLIC_API_URL || 'http://localhost:8000';
 
 export class ApiError extends Error {
 	constructor(public status: number, message: string) {
