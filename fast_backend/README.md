@@ -107,7 +107,7 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 #### Regras
 - Toda eleição é criada em configuração (`draft`)
 - Candidatos só podem ser vinculados ou removidos enquanto a eleição está em configuração
-- Para abrir a votação, a eleição precisa ter pelo menos um candidato
+- Para abrir a votação, a eleição precisa ter pelo menos dois candidatos
 - Candidato vinculado a uma eleição não pode ser desmarcado como candidato
 - A apuração exige a eleição encerrada e ocorre uma única vez
 - Eleição apurada não pode ser excluída
@@ -226,7 +226,7 @@ Rotas marcadas com **(admin)** exigem um usuário administrador.
 - `POST /elections/{id}/candidates/{candidate_id}`: Associar candidato, em configuração **(admin)**
 - `DELETE /elections/{id}/candidates/{candidate_id}`: Desassociar candidato, em configuração **(admin)**
 - `GET /elections/{id}/candidates`: Candidatos da eleição
-- `POST /elections/{id}/open`: Confirmar a configuração e abrir a votação **(admin)**
+- `POST /elections/{id}/open`: Confirmar a configuração e abrir a votação, com ao menos 2 candidatos **(admin)**
 - `POST /elections/{id}/close`: Encerrar a votação **(admin)**
 - `POST /elections/{id}/tally`: Apurar os votos e publicar o resultado **(admin)**
 

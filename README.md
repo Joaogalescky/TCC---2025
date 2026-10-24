@@ -58,7 +58,7 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 
 ### Ciclo de uma eleição
 1. **Em configuração:** a eleição é criada neste estado. O administrador vincula e remove candidatos; ainda não é possível votar.
-2. **Aberta:** o administrador confirma a configuração com o botão "Abrir votação". A lista de candidatos é travada e a votação acontece.
+2. **Aberta:** com pelo menos dois candidatos vinculados, o administrador confirma a configuração com o botão "Abrir votação". A lista de candidatos é travada e a votação acontece.
 3. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
 4. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
 

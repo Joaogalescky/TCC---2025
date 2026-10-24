@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +30,9 @@ from src.security import get_current_admin
 router = APIRouter(prefix='/elections', tags=['elections'])
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentAdmin = Annotated[User, Depends(get_current_admin)]
+
+# Uma eleição só pode ser aberta com disputa entre ao menos dois candidatos
+MIN_CANDIDATES_TO_OPEN = 2
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=ElectionPublic)
@@ -208,12 +211,15 @@ async def open_election(election_id: int, session: Session, admin: CurrentAdmin)
     # Confirma a configuração: a lista de candidatos é travada e a votação começa
     election = await _get_draft_election(election_id, session)
 
-    has_candidates = await session.scalar(
-        select(Election_Candidate).where(Election_Candidate.fk_election == election_id)
+    candidates_count = await session.scalar(
+        select(func.count(Election_Candidate.id)).where(
+            Election_Candidate.fk_election == election_id
+        )
     )
-    if not has_candidates:
+    if candidates_count < MIN_CANDIDATES_TO_OPEN:
         raise HTTPException(
-            status_code=HTTPStatus.CONFLICT, detail='Election has no candidates'
+            status_code=HTTPStatus.CONFLICT,
+            detail='Election needs at least two candidates',
         )
 
     election.status = ElectionStatus.OPEN

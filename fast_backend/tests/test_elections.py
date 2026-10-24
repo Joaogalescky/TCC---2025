@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from unittest.mock import ANY
 
 import factory
 import pytest_asyncio
@@ -193,10 +194,34 @@ def test_unmark_candidate_linked_to_election_should_return_conflict(
     assert response.json() == {'detail': 'Candidate is linked to an election'}
 
 
+def _create_candidate(client, headers, username='second_candidate'):
+    """Cadastra um usuário pela API e o marca como candidato; devolve o id."""
+    user = client.post(
+        '/users',
+        json={
+            'username': username,
+            'email': f'{username}@test.com',
+            'password': 'testtest',
+            'statusVotacao': False,
+        },
+    ).json()
+    client.patch(
+        f'/users/{user["id"]}/candidate', headers=headers, json={'is_candidate': True}
+    )
+    return user['id']
+
+
 def _open_with_candidate(client, election, candidate, admin_token):
-    """Vincula o candidato e abre a votação; devolve os headers do admin."""
+    """
+    Vincula o candidato e um segundo candidato (mínimo para abrir) e abre a
+    votação; devolve os headers do admin.
+    """
     headers = {'Authorization': f'Bearer {admin_token}'}
-    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+    second_id = _create_candidate(client, headers)
+    for candidate_id in (candidate.id, second_id):
+        client.post(
+            f'/elections/{election.id}/candidates/{candidate_id}', headers=headers
+        )
     client.post(f'/elections/{election.id}/open', headers=headers)
     return headers
 
@@ -215,7 +240,8 @@ def test_candidate_and_voter_can_vote(client, election, candidate, user, admin_t
     """Candidato e eleitor possuem voto; o candidato pode votar em si mesmo."""
     headers = _open_with_candidate(client, election, candidate, admin_token)
 
-    for voter in (candidate, user):
+    voters = (candidate, user)
+    for voter in voters:
         token = client.post(
             '/auth/token',
             data={'username': voter.email, 'password': voter.clean_password},
@@ -231,14 +257,21 @@ def test_candidate_and_voter_can_vote(client, election, candidate, user, admin_t
     client.post(f'/elections/{election.id}/tally', headers=headers)
 
     response = client.get(f'/vote/results/{election.id}')
-    assert response.json()['candidates'] == [
-        {'id': candidate.id, 'username': candidate.username, 'votes': 2}
-    ]
+    assert {
+        'id': candidate.id,
+        'username': candidate.username,
+        'votes': len(voters),
+    } in response.json()['candidates']
+    assert response.json()['total_votes'] == len(voters)
 
 
 def test_open_election(client, election, candidate, admin_token):
     headers = {'Authorization': f'Bearer {admin_token}'}
-    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+    second_id = _create_candidate(client, headers)
+    for candidate_id in (candidate.id, second_id):
+        client.post(
+            f'/elections/{election.id}/candidates/{candidate_id}', headers=headers
+        )
 
     response = client.post(f'/elections/{election.id}/open', headers=headers)
 
@@ -259,7 +292,20 @@ def test_open_election_without_candidates_should_return_conflict(
     )
 
     assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Election has no candidates'}
+    assert response.json() == {'detail': 'Election needs at least two candidates'}
+
+
+def test_open_election_with_one_candidate_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    response = client.post(f'/elections/{election.id}/open', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election needs at least two candidates'}
+    assert client.get(f'/elections/{election.id}').json()['status'] == 'draft'
 
 
 def test_open_election_should_require_admin(client, election, token):
@@ -398,7 +444,10 @@ def test_tally_election(client, election, candidate, admin_token):
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {
         'election_id': election.id,
-        'candidates': [{'id': candidate.id, 'username': candidate.username, 'votes': 1}],
+        'candidates': [
+            {'id': candidate.id, 'username': candidate.username, 'votes': 1},
+            {'id': ANY, 'username': 'second_candidate', 'votes': 0},
+        ],
         'total_votes': 1,
     }
     assert client.get(f'/elections/{election.id}').json()['status'] == 'tallied'

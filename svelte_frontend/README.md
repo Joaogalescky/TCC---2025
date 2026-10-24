@@ -63,7 +63,7 @@ svelte_frontend/
 Disponível em `/admin` e nos botões da tela de eleições, apenas para o administrador:
 - **Usuários**: Marcar ou desmarcar usuários como candidatos
 - **Eleições**: Criar eleições (em configuração) e vincular ou remover candidatos
-- **Abrir votação**: Confirma a configuração; a lista de candidatos é travada e os votos passam a ser aceitos
+- **Abrir votação**: Confirma a configuração (exige ao menos 2 candidatos); a lista de candidatos é travada e os votos passam a ser aceitos
 - **Encerrar eleição**: Impede novos votos
 - **Apurar votos**: Publica o resultado; eleições apuradas não podem ser excluídas
 
