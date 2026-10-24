@@ -1,10 +1,6 @@
 from http import HTTPStatus
 from unittest.mock import ANY
 
-import factory
-import pytest_asyncio
-
-from src.models import Election
 from src.schemas import ElectionPublic
 
 
@@ -20,6 +16,7 @@ def test_create_election(client, admin_token):
         'id': 1,
         'title': 'Test Election',
         'status': 'draft',
+        'has_votes': False,
     }
 
 
@@ -65,6 +62,7 @@ def test_update_election(client, election, admin_token):
         'id': election.id,
         'title': 'Updated Election',
         'status': 'draft',
+        'has_votes': False,
     }
 
 
@@ -127,7 +125,10 @@ def test_add_candidate_to_election(client, election, candidate, admin_token):
         'id': election.id,
         'title': election.title,
         'status': 'draft',
-        'candidates': [{'id': candidate.id, 'username': candidate.username}],
+        'has_votes': False,
+        'candidates': [
+            {'id': candidate.id, 'username': candidate.username, 'is_deleted': False}
+        ],
     }
 
 
@@ -260,6 +261,7 @@ def test_candidate_and_voter_can_vote(client, election, candidate, user, admin_t
     assert {
         'id': candidate.id,
         'username': candidate.username,
+        'is_deleted': False,
         'votes': len(voters),
     } in response.json()['candidates']
     assert response.json()['total_votes'] == len(voters)
@@ -280,6 +282,7 @@ def test_open_election(client, election, candidate, admin_token):
         'id': election.id,
         'title': election.title,
         'status': 'open',
+        'has_votes': False,
     }
 
 
@@ -385,6 +388,7 @@ def test_close_election(client, election, candidate, admin_token):
         'id': election.id,
         'title': election.title,
         'status': 'closed',
+        'has_votes': False,
     }
 
 
@@ -445,8 +449,18 @@ def test_tally_election(client, election, candidate, admin_token):
     assert response.json() == {
         'election_id': election.id,
         'candidates': [
-            {'id': candidate.id, 'username': candidate.username, 'votes': 1},
-            {'id': ANY, 'username': 'second_candidate', 'votes': 0},
+            {
+                'id': candidate.id,
+                'username': candidate.username,
+                'is_deleted': False,
+                'votes': 1,
+            },
+            {
+                'id': ANY,
+                'username': 'second_candidate',
+                'is_deleted': False,
+                'votes': 0,
+            },
         ],
         'total_votes': 1,
     }
@@ -544,19 +558,3 @@ def test_delete_closed_election_is_allowed(client, election, candidate, admin_to
     response = client.delete(f'/elections/{election.id}', headers=headers)
 
     assert response.status_code == HTTPStatus.OK
-
-
-class ElectionFactory(factory.Factory):
-    class Meta:
-        model = Election
-
-    title = factory.Sequence(lambda n: f'Election {n}')
-
-
-@pytest_asyncio.fixture
-async def election(session):
-    election = ElectionFactory()
-    session.add(election)
-    await session.commit()
-    await session.refresh(election)
-    return election

@@ -20,7 +20,7 @@ async def get_candidates(
 ):
     query = await session.scalars(
         select(User)
-        .where(User.is_candidate)
+        .where(User.is_candidate, User.deleted_at.is_(None))
         .offset(filter_candidates.offset)
         .limit(filter_candidates.limit)
     )
@@ -31,7 +31,9 @@ async def get_candidates(
 @router.get('/{candidate_id}', status_code=HTTPStatus.OK, response_model=CandidatePublic)
 async def get_candidate_by_id(candidate_id: int, session: Session):
     db_candidate = await session.scalar(
-        select(User).where(User.id == candidate_id, User.is_candidate)
+        select(User).where(
+            User.id == candidate_id, User.is_candidate, User.deleted_at.is_(None)
+        )
     )
     if not db_candidate:
         raise HTTPException(

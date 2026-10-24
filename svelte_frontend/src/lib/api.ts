@@ -62,6 +62,9 @@ export const api = {
 			method: 'POST',
 			body: JSON.stringify({ title })
 		}),
+	cancelElection: (id: number) => request(`/elections/${id}/cancel`, { method: 'POST' }),
+	deleteUser: (id: number) => request(`/users/${id}`, { method: 'DELETE' }),
+	reactivateUser: (id: number) => request(`/users/${id}/reactivate`, { method: 'POST' }),
 	deleteElection: (id: number) => request(`/elections/${id}`, { method: 'DELETE' }),
 	addCandidateToElection: (electionId: number, candidateId: number) =>
 		request(`/elections/${electionId}/candidates/${candidateId}`, { method: 'POST' }),

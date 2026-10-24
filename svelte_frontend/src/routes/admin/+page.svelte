@@ -13,12 +13,14 @@
 	interface Candidate {
 		id: number;
 		username: string;
+		is_deleted?: boolean;
 	}
 
 	interface ElectionWithCandidates {
 		id: number;
 		title: string;
 		status: string;
+		has_votes: boolean;
 		candidates: Candidate[];
 	}
 
@@ -151,6 +153,48 @@
 		}
 	}
 
+	async function cancelElection(election: ElectionWithCandidates) {
+		if (
+			!confirm(
+				`Cancelar "${election.title}"? A eleição não será apurada; votos e candidatos ficam guardados como histórico.`,
+			)
+		)
+			return;
+		try {
+			await api.cancelElection(election.id);
+			showMessage("Eleição cancelada", "success");
+			await loadAll();
+		} catch (e) {
+			showError(e, "Erro ao cancelar eleição");
+		}
+	}
+
+	async function deleteUser(user: User) {
+		if (!confirm(`Excluir a conta de ${user.username}?`)) return;
+		try {
+			const response = await api.deleteUser(user.id);
+			showMessage(
+				response.message === "User deactivated"
+					? `${user.username} participou de eleições: conta desativada e mantida no histórico`
+					: `Conta de ${user.username} excluída`,
+				"success",
+			);
+			await loadAll();
+		} catch (e) {
+			showError(e, "Erro ao excluir usuário");
+		}
+	}
+
+	async function reactivateUser(user: User) {
+		try {
+			await api.reactivateUser(user.id);
+			showMessage(`Conta de ${user.username} reativada`, "success");
+			await loadAll();
+		} catch (e) {
+			showError(e, "Erro ao reativar usuário");
+		}
+	}
+
 	async function addCandidate(election: ElectionWithCandidates) {
 		const candidateId = selectedCandidate[election.id];
 		if (!candidateId) return;
@@ -267,6 +311,12 @@
 												>Admin</span
 											>
 										{/if}
+										{#if user.is_deleted}
+											<span
+												class="ml-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full"
+												>Excluído</span
+											>
+										{/if}
 									</td>
 									<td class="px-4 py-3 text-gray-600"
 										>{user.email}</td
@@ -284,16 +334,37 @@
 											>
 										{/if}
 									</td>
-									<td class="px-4 py-3 text-right">
-										<button
-											on:click={() =>
-												toggleCandidate(user)}
-											class="text-sm px-3 py-1 rounded-md border border-gray-300 hover:bg-gray-50"
-										>
-											{user.is_candidate
-												? "Tornar eleitor"
-												: "Tornar candidato"}
-										</button>
+									<td
+										class="px-4 py-3 text-right whitespace-nowrap space-x-2"
+									>
+										{#if user.is_deleted}
+											<button
+												on:click={() =>
+													reactivateUser(user)}
+												class="text-sm px-3 py-1 rounded-md border border-gray-300 hover:bg-gray-50"
+											>
+												Reativar
+											</button>
+										{:else}
+											<button
+												on:click={() =>
+													toggleCandidate(user)}
+												class="text-sm px-3 py-1 rounded-md border border-gray-300 hover:bg-gray-50"
+											>
+												{user.is_candidate
+													? "Tornar eleitor"
+													: "Tornar candidato"}
+											</button>
+											{#if !user.is_admin}
+												<button
+													on:click={() =>
+														deleteUser(user)}
+													class="text-sm px-3 py-1 rounded-md text-red-600 hover:bg-red-50"
+												>
+													Excluir
+												</button>
+											{/if}
+										{/if}
 									</td>
 								</tr>
 							{/each}
@@ -341,7 +412,14 @@
 								</h3>
 								<ElectionStatusBadge status={election.status} />
 							</div>
-							{#if election.status !== "tallied"}
+							{#if election.has_votes && (election.status === "open" || election.status === "closed")}
+								<button
+									on:click={() => cancelElection(election)}
+									class="text-sm text-red-600 hover:text-red-500"
+								>
+									Cancelar eleição
+								</button>
+							{:else if !election.has_votes && election.status !== "tallied"}
 								<button
 									on:click={() => deleteElection(election)}
 									class="text-sm text-red-600 hover:text-red-500"
@@ -394,7 +472,15 @@
 										<li
 											class="flex justify-between items-center py-2"
 										>
-											<span>{candidate.username}</span>
+											<span
+												>{candidate.username}
+												{#if candidate.is_deleted}
+													<span
+														class="text-xs text-gray-500"
+														>(conta excluída)</span
+													>
+												{/if}
+											</span>
 											{#if election.status === "draft"}
 												<button
 													on:click={() =>

@@ -127,11 +127,6 @@ async def cast_vote(
 
         tally.encrypted_tally = encrypted_tally
 
-    # Somar voto ao tally
-    tally.encrypted_tally = crypto_service.add_vote_to_tally(
-        tally.encrypted_tally, encrypted_vote
-    )
-
     # Somar voto ao tally (soma homomórfica)
     tally.encrypted_tally = crypto_service.add_vote_to_tally(
         tally.encrypted_tally, encrypted_vote
@@ -206,6 +201,7 @@ async def compute_results(election_id: int, session: AsyncSession):
         candidates_results.append({
             'id': candidate.id,
             'username': candidate.username,
+            'is_deleted': candidate.is_deleted,
             'votes': decrypted_votes,
         })
 

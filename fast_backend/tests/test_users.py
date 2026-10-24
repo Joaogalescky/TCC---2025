@@ -22,6 +22,7 @@ def test_create_user(client):
         'statusVotacao': True,
         'is_candidate': False,
         'is_admin': False,
+        'is_deleted': False,
         'id': 1,
     }
 
@@ -120,6 +121,7 @@ def test_update_user(client, user, token):
         'statusVotacao': False,
         'is_candidate': False,
         'is_admin': False,
+        'is_deleted': False,
         'id': user.id,
     }
 
@@ -174,6 +176,7 @@ def test_parcial_update_user(client, user, token):
         'statusVotacao': True,
         'is_candidate': False,
         'is_admin': False,
+        'is_deleted': False,
         'id': user.id,
     }
 

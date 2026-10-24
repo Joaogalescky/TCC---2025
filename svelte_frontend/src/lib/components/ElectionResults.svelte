@@ -2,6 +2,7 @@
 	export interface CandidateResult {
 		id: number;
 		username: string;
+		is_deleted?: boolean;
 		votes: number;
 	}
 
@@ -41,6 +42,9 @@
 					<div class="flex justify-between items-baseline text-sm mb-1">
 						<span class="font-medium text-gray-900">
 							{candidate.username}
+							{#if candidate.is_deleted}
+								<span class="text-xs text-gray-500">(conta excluída)</span>
+							{/if}
 							{#if topVotes > 0 && candidate.votes === topVotes}
 								<span
 									class="ml-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"

@@ -25,6 +25,8 @@ class User:
     is_admin: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text('0')
     )
+    # Exclusão lógica: preenchido quando quem participou de eleições exclui a conta
+    deleted_at: Mapped[datetime | None] = mapped_column(nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         init=False, nullable=False, server_default=func.now()
     )
@@ -35,13 +37,19 @@ class User:
         onupdate=func.now(),
     )
 
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
 
 class ElectionStatus(StrEnum):
     # em configuração (candidatos) -> aberta (votação) -> encerrada -> apurada
+    # aberta ou encerrada com votos podem ser canceladas (exclusão lógica)
     DRAFT = 'draft'
     OPEN = 'open'
     CLOSED = 'closed'
     TALLIED = 'tallied'
+    CANCELLED = 'cancelled'
 
 
 @table_registry.mapped_as_dataclass

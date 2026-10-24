@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,8 +10,10 @@ from src.database import get_session
 from src.models import (
     Election,
     Election_Candidate,
+    Election_Tally,
     ElectionStatus,
     User,
+    Vote_Election,
 )
 from src.routers.events import notify_election_change
 from src.routers.vote import compute_results
@@ -60,7 +62,7 @@ async def get_elections(
     )
 
     elections = query.all()
-    return {'elections': elections}
+    return {'elections': [await _public(e, session) for e in elections]}
 
 
 @router.get('/{election_id}', status_code=HTTPStatus.OK, response_model=ElectionPublic)
@@ -68,7 +70,7 @@ async def get_election_by_id(election_id: int, session: Session):
     db_election = await session.scalar(select(Election).where(Election.id == election_id))
     if not db_election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
-    return db_election
+    return await _public(db_election, session)
 
 
 @router.put('/{election_id}', status_code=HTTPStatus.OK, response_model=ElectionPublic)
@@ -88,7 +90,7 @@ async def update_election(
         await session.refresh(db_election)
         await notify_election_change()
 
-        return db_election
+        return await _public(db_election, session)
 
     except IntegrityError:
         raise HTTPException(
@@ -115,6 +117,20 @@ async def delete_election(
             detail='Tallied elections cannot be deleted',
         )
 
+    # Com votos a exclusão é só lógica (cancelamento), preservando o histórico
+    if await _has_votes(election_id, session):
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Election has votes, cancel it instead',
+        )
+
+    # Sem votos, remove junto vínculos e registro para não deixar dados órfãos
+    await session.execute(
+        delete(Election_Candidate).where(Election_Candidate.fk_election == election_id)
+    )
+    await session.execute(
+        delete(Election_Tally).where(Election_Tally.fk_election == election_id)
+    )
     await session.delete(db_election)
     await session.commit()
     await notify_election_change()
@@ -133,7 +149,9 @@ async def add_candidate_to_election(
     election = await _get_draft_election(election_id, session)
 
     candidate = await session.scalar(
-        select(User).where(User.id == candidate_id, User.is_candidate)
+        select(User).where(
+            User.id == candidate_id, User.is_candidate, User.deleted_at.is_(None)
+        )
     )
     if not candidate:
         raise HTTPException(
@@ -242,7 +260,30 @@ async def close_election(election_id: int, session: Session, admin: CurrentAdmin
     await session.refresh(election)
     await notify_election_change()
 
-    return election
+    return await _public(election, session)
+
+
+@router.post(
+    '/{election_id}/cancel', status_code=HTTPStatus.OK, response_model=ElectionPublic
+)
+async def cancel_election(election_id: int, session: Session, admin: CurrentAdmin):
+    # Exclusão lógica: votos e vínculos são mantidos como histórico, sem apuração
+    election = await session.scalar(select(Election).where(Election.id == election_id))
+    if not election:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+
+    if election.status not in {ElectionStatus.OPEN, ElectionStatus.CLOSED}:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Only open or closed elections can be cancelled',
+        )
+
+    election.status = ElectionStatus.CANCELLED
+    await session.commit()
+    await session.refresh(election)
+    await notify_election_change()
+
+    return await _public(election, session)
 
 
 @router.post(
@@ -307,12 +348,32 @@ async def _election_with_candidates(election: Election, session: AsyncSession):
         .where(Election_Candidate.fk_election == election.id)
     )
     candidates = [
-        CandidatePublic(id=c.id, username=c.username) for c in candidates_query.all()
+        CandidatePublic(id=c.id, username=c.username, is_deleted=c.is_deleted)
+        for c in candidates_query.all()
     ]
 
     return ElectionWithCandidates(
         id=election.id,
         title=election.title,
         status=election.status,
+        has_votes=await _has_votes(election.id, session),
         candidates=candidates,
+    )
+
+
+async def _has_votes(election_id: int, session: AsyncSession) -> bool:
+    vote = await session.scalar(
+        select(Vote_Election)
+        .join(Election_Candidate)
+        .where(Election_Candidate.fk_election == election_id)
+    )
+    return vote is not None
+
+
+async def _public(election: Election, session: AsyncSession) -> ElectionPublic:
+    return ElectionPublic(
+        id=election.id,
+        title=election.title,
+        status=election.status,
+        has_votes=await _has_votes(election.id, session),
     )

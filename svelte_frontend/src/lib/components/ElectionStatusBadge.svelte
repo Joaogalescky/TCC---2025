@@ -10,6 +10,7 @@
 		open: { text: "Aberta", classes: "bg-green-100 text-green-700" },
 		closed: { text: "Encerrada", classes: "bg-yellow-100 text-yellow-800" },
 		tallied: { text: "Apurada", classes: "bg-blue-100 text-blue-700" },
+		cancelled: { text: "Cancelada", classes: "bg-red-100 text-red-700" },
 	};
 
 	let label = $derived(

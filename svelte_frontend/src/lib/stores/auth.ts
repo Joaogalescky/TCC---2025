@@ -8,6 +8,7 @@ export interface User {
 	statusVotacao: boolean;
 	is_candidate: boolean;
 	is_admin: boolean;
+	is_deleted: boolean;
 }
 
 interface AuthState {

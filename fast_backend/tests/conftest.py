@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.database import get_session
-from src.models import User, table_registry
+from src.models import Election, User, table_registry
 from src.security import get_password_hash
 
 
@@ -168,3 +168,19 @@ class UserFactory(factory.Factory):
     email = factory.LazyAttribute(lambda obj: f'{obj.username}@test.com')
     password = factory.LazyAttribute(lambda obj: f'{obj.username}@example.com')
     statusVotacao = True
+
+
+class ElectionFactory(factory.Factory):
+    class Meta:
+        model = Election
+
+    title = factory.Sequence(lambda n: f'Election {n}')
+
+
+@pytest_asyncio.fixture
+async def election(session):
+    election = ElectionFactory()
+    session.add(election)
+    await session.commit()
+    await session.refresh(election)
+    return election

@@ -19,6 +19,7 @@
 	interface Candidate {
 		id: number;
 		username: string;
+		is_deleted?: boolean;
 	}
 
 	interface ElectionWithCandidates extends Election {
@@ -38,8 +39,9 @@
 		goto("/login");
 	}
 
-	onMount(async () => {
-		await loadElections();
+	// Sem async: o Svelte só executa a função de limpeza retornada por um onMount síncrono
+	onMount(() => {
+		loadElections();
 
 		if (browser) {
 			const eventSource = new EventSource(
@@ -343,6 +345,13 @@
 						Eleição em configuração. A votação ainda não foi aberta
 						pelo administrador.
 					</p>
+				{:else if selectedElection.status === "cancelled"}
+					<p
+						class="mb-6 text-sm bg-red-50 text-red-700 border border-red-200 rounded-md px-4 py-3"
+					>
+						Eleição cancelada pelo administrador. Os votos foram
+						mantidos como histórico e não serão apurados.
+					</p>
 				{:else if selectedElection.status === "closed"}
 					<p
 						class="mb-6 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-md px-4 py-3"
@@ -382,6 +391,12 @@
 										class="text-lg font-medium text-gray-900 mb-4"
 									>
 										{candidate.username}
+										{#if candidate.is_deleted}
+											<span
+												class="block text-sm font-normal text-gray-500"
+												>(conta excluída)</span
+											>
+										{/if}
 									</h3>
 									{#if selectedElection.status === "open"}
 										<button

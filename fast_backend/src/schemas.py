@@ -21,6 +21,7 @@ class UserPublic(BaseModel):
     statusVotacao: bool
     is_candidate: bool
     is_admin: bool
+    is_deleted: bool
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -35,6 +36,8 @@ class CandidateStatusSchema(BaseModel):
 class CandidatePublic(BaseModel):
     id: int
     username: str
+    # Candidato que excluiu a conta continua na cédula das eleições já abertas
+    is_deleted: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,6 +53,8 @@ class ElectionPublic(BaseModel):
     id: int
     title: str
     status: str
+    # Define se a exclusão é física (sem votos) ou só cancelamento (com votos)
+    has_votes: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -57,6 +62,8 @@ class ElectionWithCandidates(BaseModel):
     id: int
     title: str
     status: str
+    # Define se a exclusão é física (sem votos) ou só cancelamento (com votos)
+    has_votes: bool = False
     candidates: List[CandidatePublic]
     model_config = ConfigDict(from_attributes=True)
 
