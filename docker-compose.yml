@@ -11,10 +11,18 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       PLAINTEXT_MODULUS: ${PLAINTEXT_MODULUS:-65537}
       MULTIPLICATIVE_DEPTH: ${MULTIPLICATIVE_DEPTH:-2}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Defina ADMIN_EMAIL no arquivo .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      LOTE_TAMANHO: ${LOTE_TAMANHO:-1000}
+      LOTE_MINIMO_DECIFRAR: ${LOTE_MINIMO_DECIFRAR:-100}
+      KEYS_DIR: ${KEYS_DIR:-/app/keys}
     ports:
       - "8000:8000"
     volumes:
       - ./fast_backend/database.db:/app/database.db
+      # Contexto e chaves do OpenFHE; sem elas os votos gravados não podem ser decifrados
+      - eleicao_keys:/app/keys
     networks:
       - eleicao_network
     healthcheck:
@@ -45,3 +53,6 @@ services:
 networks:
   eleicao_network:
     driver: bridge
+
+volumes:
+  eleicao_keys:

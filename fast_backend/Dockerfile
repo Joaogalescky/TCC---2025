@@ -21,4 +21,5 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["fastapi", "run", "src/app.py", "--host", "0.0.0.0", "--port", "8000"]
+# Aplica as migrações pendentes antes de iniciar a API
+CMD ["sh", "-c", "alembic upgrade head && fastapi run src/app.py --host 0.0.0.0 --port 8000"]

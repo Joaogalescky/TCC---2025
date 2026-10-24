@@ -1,5 +1,13 @@
+import os
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime
+
+# Lotes pequenos e chaves temporárias nos testes; definido antes de importar a
+# aplicação porque as configurações são lidas na importação dos módulos
+os.environ['LOTE_TAMANHO'] = '5'
+os.environ['LOTE_MINIMO_DECIFRAR'] = '2'
+os.environ['KEYS_DIR'] = tempfile.mkdtemp(prefix='tcc-keys-')
 
 import factory
 import pytest
@@ -11,17 +19,18 @@ from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.database import get_session
-from src.models import User, table_registry
+from src.models import Election, User, table_registry
 from src.security import get_password_hash
 
 
 @pytest.fixture
 def client(session):
-    def get_session_override():
-        return session
+    async def get_session_override():
+        yield session
 
+    # Override antes de iniciar o app: o lifespan (criação do admin) usa a mesma sessão
+    app.dependency_overrides[get_session] = get_session_override
     with TestClient(app) as client:
-        app.dependency_overrides[get_session] = get_session_override
         yield client
 
     app.dependency_overrides.clear()
@@ -79,6 +88,15 @@ def mock_db_time():
     return _mock_db_time
 
 
+def _detach(session, obj):
+    """
+    Desliga o objeto da sessão compartilhada com a aplicação: um rollback da
+    aplicação (ex.: 409 dentro de uma transação de voto) expiraria o objeto, e
+    ler seus atributos no teste tentaria uma carga síncrona fora do async.
+    """
+    session.expunge(obj)
+
+
 @pytest_asyncio.fixture
 async def user(session):
     password = 'testtest'
@@ -87,6 +105,7 @@ async def user(session):
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    _detach(session, user)
 
     user.clean_password = password
 
@@ -101,6 +120,7 @@ async def other_user(session):
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    _detach(session, user)
 
     user.clean_password = password
 
@@ -119,6 +139,48 @@ def token(client, user):
     return response.json()['access_token']
 
 
+@pytest_asyncio.fixture
+async def admin(session):
+    password = 'testtest'
+    user = UserFactory(password=get_password_hash(password), is_admin=True)
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    _detach(session, user)
+
+    user.clean_password = password
+
+    return user
+
+
+@pytest.fixture
+def admin_token(client, admin):
+    response = client.post(
+        '/auth/token',
+        data={
+            'username': admin.email,
+            'password': admin.clean_password,
+        },
+    )
+    return response.json()['access_token']
+
+
+@pytest_asyncio.fixture
+async def candidate(session):
+    password = 'testtest'
+    user = UserFactory(password=get_password_hash(password), is_candidate=True)
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    _detach(session, user)
+
+    user.clean_password = password
+
+    return user
+
+
 class UserFactory(factory.Factory):
     class Meta:
         model = User
@@ -127,3 +189,20 @@ class UserFactory(factory.Factory):
     email = factory.LazyAttribute(lambda obj: f'{obj.username}@test.com')
     password = factory.LazyAttribute(lambda obj: f'{obj.username}@example.com')
     statusVotacao = True
+
+
+class ElectionFactory(factory.Factory):
+    class Meta:
+        model = Election
+
+    title = factory.Sequence(lambda n: f'Election {n}')
+
+
+@pytest_asyncio.fixture
+async def election(session):
+    election = ElectionFactory()
+    session.add(election)
+    await session.commit()
+    await session.refresh(election)
+    _detach(session, election)
+    return election

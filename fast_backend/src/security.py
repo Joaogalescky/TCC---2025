@@ -61,7 +61,17 @@ async def get_current_user(
 
     user = await session.scalar(select(User).where(User.email == subject_email))
 
-    if not user:
+    # Conta excluída logicamente perde o acesso, inclusive com token já emitido
+    if not user or user.is_deleted:
         raise credentials_exception
+
+    return user
+
+
+async def get_current_admin(user: User = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail='Not enough permissions'
+        )
 
     return user

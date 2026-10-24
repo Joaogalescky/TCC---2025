@@ -8,6 +8,7 @@ __pycache__
 htmlcov
 .env
 database.db
+keys
 tests
 Dockerfile
 .dockerignore

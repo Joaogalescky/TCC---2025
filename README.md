@@ -17,14 +17,11 @@ Repositório para o Trabalho de Conclusão de Curso (TCC) do curso de Tecnologia
 git clone <url-do-repositorio>
 cd TCC---2025
 
-# 2. Verifique o ambiente
-./check-environment.sh
-
-# 3. Configure e inicie
+# 2. Configure e inicie (defina SECRET_KEY e os dados ADMIN_* no .env)
 cp .env.example .env
 make docker-up
 
-# 4. Acesse http://localhost:3000
+# 3. Acesse http://localhost:3000 e entre com o ADMIN_EMAIL e ADMIN_PASSWORD
 ```
 
 **Documentação:** [DOCKER.md](DOCKER.md)
@@ -49,6 +46,37 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 - Utilizar o esquema de criptografia BFV (Brakerski/Fan-Vercauteren);
 - Armazenar votos criptografados em banco de dados relacional;
 - Garantir segurança, confidencialidade, integridade e anonimato durante o processo de eleição.
+
+---
+
+## Funcionamento do Sistema
+
+### Papéis
+- **Eleitor:** todo usuário cadastrado. Pode votar.
+- **Candidato:** usuário marcado pelo administrador. Também vota e pode concorrer nas eleições em que for vinculado.
+- **Administrador:** definido no `.env` (`ADMIN_*`). Gerencia usuários candidatos e eleições.
+
+### Ciclo de uma eleição
+1. **Em configuração:** a eleição é criada neste estado. O administrador vincula e remove candidatos; ainda não é possível votar.
+2. **Aberta:** com pelo menos dois candidatos vinculados, o administrador confirma a configuração com o botão "Abrir votação". A lista de candidatos é travada e a votação acontece.
+3. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
+4. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
+
+### Sigilo e conferência do voto
+- Cada voto é um vetor com 1 na posição do candidato, cifrado com BFV e gravado no banco **sem o eleitor, sem o candidato e sem horário**. Um registro separado guarda apenas quem já votou, para impedir voto duplo.
+- Os votos são agrupados em **lotes** (1.000 por padrão). Quando um lote fecha, ou quando a eleição é encerrada, seus votos viram um subtotal cifrado e são apagados.
+- Ao votar, o eleitor recebe um **comprovante** (o hash SHA-256 do voto cifrado). Com ele, confere na tela da eleição se o voto está pendente ou registrado num lote. O comprovante não revela em quem a pessoa votou.
+- Os lotes formam uma cadeia de hashes, e a apuração faz **dupla contagem**: o total somado voto a voto precisa bater com a soma dos subtotais dos lotes. Se algo não bater, o resultado não é publicado.
+- Nenhum conjunto parcial de votos com menos de 100 votos (nem o que sobra fora dele) pode ser decifrado.
+
+Uma eleição aberta ou encerrada que já recebeu votos não pode ser excluída: o administrador pode apenas **cancelá-la**. Ela fica como "Cancelada", não é apurada, e votos e candidatos permanecem como histórico. Sem votos, a eleição pode ser excluída definitivamente.
+
+### Exclusão de contas
+- Quem nunca participou de uma eleição tem a conta excluída definitivamente.
+- Quem já votou, ou foi candidato numa eleição aberta, tem a conta **excluída logicamente**: perde o acesso, mas votos e candidaturas continuam no histórico, e o e-mail e o nome de usuário seguem reservados. O administrador pode reativar a conta.
+- Um candidato que exclui a conta durante a votação continua na cédula, marcado como "(conta excluída)", e pode receber votos.
+
+Detalhes das regras e rotas da API em [fast_backend/README.md](fast_backend/README.md).
 
 ---
 
@@ -156,7 +184,7 @@ pip install poetry
 poetry install
 ```
 
-2. **Configure o banco de dados e variáveis de ambiente**
+2. **Configure o banco de dados e variáveis de ambiente** (veja [fast_backend/README.md](fast_backend/README.md))
 
 3. **Execute o servidor:**
 ```bash

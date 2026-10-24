@@ -18,8 +18,7 @@ Este diretório implementa a interface de usuário do sistema de eleição eletr
 ### Ferramentas de Desenvolvimento
 - **Vite**: Bundler e servidor de desenvolvimento
 - **Vitest**: Framework de testes unitários
-- **Playwright**: Ferramenta para testes end-to-end
-- **ESLint**: Linter para análise estática de código
+- **Playwright**: Navegador usado pelo Vitest nos testes de componentes
 
 ## Estrutura do Projeto
 
@@ -29,19 +28,21 @@ svelte_frontend/
 │   ├── lib/
 │   │   ├── api.ts              # Cliente HTTP para comunicação com backend
 │   │   ├── components/         # Componentes reutilizáveis
-│   │   │   └── Toast.svelte    # Componente de notificações
+│   │   │   ├── Toast.svelte    # Componente de notificações
+│   │   │   ├── ElectionStatusBadge.svelte  # Selo de status (Em configuração, Aberta, Encerrada, Apurada, Cancelada)
+│   │   │   └── ElectionResults.svelte      # Resultado da apuração
 │   │   └── stores/             # Gerenciamento de estado global
 │   │       └── auth.ts         # Store de autenticação
 │   ├── routes/                 # Páginas da aplicação
 │   │   ├── +layout.svelte      # Layout base da aplicação
 │   │   ├── +page.svelte        # Página inicial (redirecionamento)
+│   │   ├── admin/              # Administração (somente administrador)
 │   │   ├── election/           # Módulo de eleições
 │   │   ├── login/              # Módulo de autenticação
 │   │   └── register/           # Módulo de cadastro
 │   ├── app.html               # Template HTML base
 │   └── app.d.ts               # Definições de tipos TypeScript
 ├── static/                    # Arquivos estáticos
-├── tests/                     # Testes automatizados
 └── package.json              # Configurações e dependências
 ```
 
@@ -53,15 +54,27 @@ svelte_frontend/
 - **Gerenciamento de Sessão**: Persistência de estado de autenticação
 
 ### 2. Interface de Votação
-- **Listagem de Eleições**: Visualização de eleições disponíveis
+- **Listagem de Eleições**: Visualização de eleições disponíveis e do status de cada uma
 - **Seleção de Candidatos**: Interface para escolha de candidatos
-- **Processo de Votação**: Submissão segura de votos criptografados
+- **Processo de Votação**: Submissão segura de votos criptografados, apenas com a eleição aberta (eleições em configuração aparecem sem a opção de votar)
+- **Comprovante**: Depois de votar, o eleitor vê o comprovante (hash do voto cifrado) com botão para copiar; ele não revela o candidato escolhido
+- **Conferência**: Na tela de cada eleição, um campo recebe o comprovante e mostra se o voto está pendente (lote aberto) ou registrado num lote
+- **Resultado**: Exibido para todos após a apuração
 
-### 3. Atualizações em Tempo Real
+### 3. Administração
+Disponível em `/admin` e nos botões da tela de eleições, apenas para o administrador:
+- **Usuários**: Marcar ou desmarcar usuários como candidatos; excluir contas e reativar contas excluídas logicamente
+- **Eleições**: Criar eleições (em configuração) e vincular ou remover candidatos
+- **Abrir votação**: Confirma a configuração (exige ao menos 2 candidatos); a lista de candidatos é travada e os votos passam a ser aceitos
+- **Encerrar eleição**: Impede novos votos
+- **Apurar votos**: Publica o resultado; eleições apuradas não podem ser excluídas
+- **Excluir ou cancelar eleição**: Sem votos, a eleição é excluída; com votos, só pode ser cancelada e fica no histórico
+
+### 4. Atualizações em Tempo Real
 - **Server-Sent Events (SSE)**: Recebimento de atualizações automáticas
 - **Sincronização de Estado**: Atualização dinâmica da interface
 
-### 4. Gerenciamento de Estado
+### 5. Gerenciamento de Estado
 - **Svelte Stores**: Gerenciamento reativo do estado da aplicação
 - **Persistência Local**: Armazenamento de tokens de autenticação
 
@@ -113,6 +126,7 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 ### Endpoints de Autenticação
 - `POST /auth/token`: Obtenção de token de acesso
 - `POST /users`: Registro de novos usuários
+- `GET /users/me`: Dados do usuário autenticado (papel de candidato e administrador)
 
 ### Endpoints de Eleições
 - `GET /elections`: Listagem de eleições disponíveis
@@ -120,7 +134,19 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 
 ### Endpoints de Votação
 - `POST /vote/election/{id}`: Submissão de voto criptografado
-- `GET /vote/results/{id}`: Consulta de resultados da eleição
+- `GET /vote/results/{id}`: Consulta de resultados da eleição apurada
+- `GET /vote/receipt/{election_id}/{receipt_hash}`: Conferência do comprovante
+- `GET /elections/{id}/audit`: Lotes e comprovantes da eleição (disponível em `api.getAudit`)
+
+### Endpoints de Administração
+- `GET /users` e `PATCH /users/{id}/candidate`: Listagem de usuários e definição de candidatos
+- `DELETE /users/{id}` e `POST /users/{id}/reactivate`: Exclusão e reativação de contas
+- `POST /elections` e `DELETE /elections/{id}`: Criação e exclusão de eleições sem votos
+- `POST /elections/{id}/cancel`: Cancelamento de eleição com votos
+- `POST` e `DELETE /elections/{id}/candidates/{candidate_id}`: Vínculo de candidatos
+- `POST /elections/{id}/open`: Abertura da votação
+- `POST /elections/{id}/close`: Encerramento da eleição
+- `POST /elections/{id}/tally`: Apuração dos votos
 
 ## Segurança e Privacidade
 

@@ -586,3 +586,6 @@ FodyWeavers.xsd
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudio,database
 
 # Generated using ignr.py - github.com/Antrikshy/ignr.py
+
+# Chaves do OpenFHE (a chave privada nunca deve ir para o Git)
+fast_backend/keys/
