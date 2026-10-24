@@ -106,6 +106,13 @@ async def delete_election(
     if not db_election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
+    # Eleição apurada é mantida como histórico
+    if db_election.status == ElectionStatus.TALLIED:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Tallied elections cannot be deleted',
+        )
+
     await session.delete(db_election)
     await session.commit()
     await notify_election_change()
@@ -122,6 +129,18 @@ async def add_candidate_to_election(
     election_id: int, candidate_id: int, session: Session, admin: CurrentAdmin
 ):
     election = await _get_open_election(election_id, session)
+
+    # Após o primeiro voto a lista de candidatos não recebe novos nomes
+    first_vote = await session.scalar(
+        select(Vote_Election)
+        .join(Election_Candidate)
+        .where(Election_Candidate.fk_election == election_id)
+    )
+    if first_vote:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Election already has votes',
+        )
 
     candidate = await session.scalar(
         select(User).where(User.id == candidate_id, User.is_candidate)

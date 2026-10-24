@@ -400,6 +400,60 @@ def test_results_after_tally_are_public(client, election, candidate, admin_token
     assert response.json()['total_votes'] == 1
 
 
+def test_add_candidate_after_first_vote_should_return_conflict(
+    client, election, candidate, user, admin_token
+):
+    headers = _link_and_vote(client, election, candidate, admin_token)
+    client.patch(
+        f'/users/{user.id}/candidate', headers=headers, json={'is_candidate': True}
+    )
+
+    response = client.post(
+        f'/elections/{election.id}/candidates/{user.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election already has votes'}
+
+
+def test_add_candidate_before_first_vote_is_allowed(
+    client, election, candidate, user, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+    client.patch(
+        f'/users/{user.id}/candidate', headers=headers, json={'is_candidate': True}
+    )
+
+    response = client.post(
+        f'/elections/{election.id}/candidates/{user.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert [c['id'] for c in response.json()['candidates']] == [candidate.id, user.id]
+
+
+def test_delete_tallied_election_should_return_conflict(client, election, admin_token):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/close', headers=headers)
+    client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    response = client.delete(f'/elections/{election.id}', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Tallied elections cannot be deleted'}
+    assert client.get(f'/elections/{election.id}').json()['status'] == 'tallied'
+
+
+def test_delete_closed_election_is_allowed(client, election, admin_token):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.delete(f'/elections/{election.id}', headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+
+
 class ElectionFactory(factory.Factory):
     class Meta:
         model = Election

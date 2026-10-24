@@ -325,12 +325,14 @@
 								</h3>
 								<ElectionStatusBadge status={election.status} />
 							</div>
-							<button
-								on:click={() => deleteElection(election)}
-								class="text-sm text-red-600 hover:text-red-500"
-							>
-								Excluir
-							</button>
+							{#if election.status !== "tallied"}
+								<button
+									on:click={() => deleteElection(election)}
+									class="text-sm text-red-600 hover:text-red-500"
+								>
+									Excluir
+								</button>
+							{/if}
 						</div>
 
 						{#if election.status === "open"}
