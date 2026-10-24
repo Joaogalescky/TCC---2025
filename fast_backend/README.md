@@ -73,9 +73,9 @@ fast_backend/
 #### Estrutura de Dados
 ```sql
 -- Usuários (eleitores, candidatos e administrador)
-usuarios (id, username, password, email, statusVotacao, is_candidate, is_admin, created_at, updated_at)
+usuarios (id, username, password, email, statusVotacao, is_candidate, is_admin, deleted_at, created_at, updated_at)
 
--- Eleições (status: draft, open, closed ou tallied)
+-- Eleições (status: draft, open, closed, tallied ou cancelled)
 eleicoes (id, title, status, created_at, updated_at)
 
 -- Associação Eleição-Candidato (fk_candidate referencia usuarios)
@@ -86,7 +86,7 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 ```
 
 #### Funcionalidades
-- **CRUD de Eleições**: Criação, leitura, atualização e exclusão (somente administrador)
+- **CRUD de Eleições**: Criação, leitura, atualização e exclusão ou cancelamento (somente administrador)
 - **Associação de Candidatos**: Vinculação de candidatos às eleições (somente administrador)
 - **Tally Criptografado**: Manutenção de contagem homomórfica
 - **Abertura, Encerramento e Apuração**: O administrador abre a votação, encerra e depois apura os votos
@@ -103,6 +103,7 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 | `open` | Aberta | Votar; lista de candidatos travada |
 | `closed` | Encerrada | Nenhum voto novo; lista de candidatos travada; resultado sigiloso |
 | `tallied` | Apurada | Resultado público; eleição mantida como histórico (não pode ser excluída) |
+| `cancelled` | Cancelada | Exclusão lógica de eleição aberta ou encerrada; votos e candidatos mantidos, sem apuração |
 
 #### Regras
 - Toda eleição é criada em configuração (`draft`)
@@ -110,7 +111,17 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 - Para abrir a votação, a eleição precisa ter pelo menos dois candidatos
 - Candidato vinculado a uma eleição não pode ser desmarcado como candidato
 - A apuração exige a eleição encerrada e ocorre uma única vez
-- Eleição apurada não pode ser excluída
+- Eleição apurada não pode ser excluída nem cancelada
+- Eleição sem votos pode ser excluída definitivamente, junto com vínculos e registro
+- Eleição aberta ou encerrada com votos não pode ser excluída, apenas cancelada
+
+#### Exclusão de Usuários
+- O próprio usuário ou o administrador podem excluir uma conta; contas de administrador não podem ser excluídas
+- Exclusão física: quem nunca votou nem foi candidato numa eleição aberta
+- Exclusão lógica (`deleted_at`): quem já participou; a conta perde o acesso (login e tokens), mas votos e candidaturas ficam no histórico e o e-mail e o nome continuam reservados
+- O administrador pode reativar uma conta excluída logicamente
+- Vínculos com eleições em configuração são removidos na exclusão
+- Candidato excluído logicamente continua na cédula das eleições abertas, marcado com `is_deleted`, e pode receber votos; não pode ser vinculado a novas eleições
 
 ### 3. Sistema de Votação
 
@@ -211,7 +222,8 @@ Rotas marcadas com **(admin)** exigem um usuário administrador.
 - `PUT /users/{id}`: Atualização completa
 - `PATCH /users/{id}`: Atualização parcial
 - `PATCH /users/{id}/candidate`: Marcar ou desmarcar como candidato **(admin)**
-- `DELETE /users/{id}`: Exclusão de usuário
+- `DELETE /users/{id}`: Exclusão da própria conta ou pelo administrador (física ou lógica)
+- `POST /users/{id}/reactivate`: Reativar conta excluída logicamente **(admin)**
 
 ### Candidatos
 - `GET /candidates`: Listagem de usuários marcados como candidatos
@@ -222,7 +234,8 @@ Rotas marcadas com **(admin)** exigem um usuário administrador.
 - `GET /elections`: Listagem de eleições
 - `GET /elections/{id}`: Eleição específica
 - `PUT /elections/{id}`: Atualização de eleição **(admin)**
-- `DELETE /elections/{id}`: Exclusão de eleição, exceto apuradas **(admin)**
+- `DELETE /elections/{id}`: Exclusão de eleição sem votos e não apurada **(admin)**
+- `POST /elections/{id}/cancel`: Cancelar eleição aberta ou encerrada (exclusão lógica) **(admin)**
 - `POST /elections/{id}/candidates/{candidate_id}`: Associar candidato, em configuração **(admin)**
 - `DELETE /elections/{id}/candidates/{candidate_id}`: Desassociar candidato, em configuração **(admin)**
 - `GET /elections/{id}/candidates`: Candidatos da eleição

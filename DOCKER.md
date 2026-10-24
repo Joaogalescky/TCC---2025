@@ -127,6 +127,18 @@ O arquivo `.env` não existe ou não define `SECRET_KEY`. Execute `cp .env.examp
 ### Erro `Defina ADMIN_EMAIL no arquivo .env`
 O `.env` não define o e-mail do administrador. Preencha `ADMIN_USERNAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD`. O e-mail precisa ser válido: domínios reservados, como `.local`, são recusados.
 
+### Recomeçar com o banco de dados vazio
+O `docker-compose.yml` monta o arquivo `fast_backend/database.db` no container. Se o arquivo for apagado, o Docker cria uma **pasta** com esse nome e o backend não sobe. Para recomeçar, substitua o arquivo por um vazio:
+
+```bash
+docker compose down
+rm fast_backend/database.db
+touch fast_backend/database.db
+docker compose up -d
+```
+
+Ao iniciar, o backend aplica as migrações no arquivo vazio e cria o administrador definido no `.env`. Todos os usuários, eleições e votos anteriores são perdidos.
+
 ## Desenvolvimento
 
 Para desenvolvimento local sem Docker, consulte o README.md principal.

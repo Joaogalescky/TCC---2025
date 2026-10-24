@@ -29,7 +29,7 @@ svelte_frontend/
 │   │   ├── api.ts              # Cliente HTTP para comunicação com backend
 │   │   ├── components/         # Componentes reutilizáveis
 │   │   │   ├── Toast.svelte    # Componente de notificações
-│   │   │   ├── ElectionStatusBadge.svelte  # Selo de status (Aberta, Encerrada, Apurada)
+│   │   │   ├── ElectionStatusBadge.svelte  # Selo de status (Em configuração, Aberta, Encerrada, Apurada, Cancelada)
 │   │   │   └── ElectionResults.svelte      # Resultado da apuração
 │   │   └── stores/             # Gerenciamento de estado global
 │   │       └── auth.ts         # Store de autenticação
@@ -61,11 +61,12 @@ svelte_frontend/
 
 ### 3. Administração
 Disponível em `/admin` e nos botões da tela de eleições, apenas para o administrador:
-- **Usuários**: Marcar ou desmarcar usuários como candidatos
+- **Usuários**: Marcar ou desmarcar usuários como candidatos; excluir contas e reativar contas excluídas logicamente
 - **Eleições**: Criar eleições (em configuração) e vincular ou remover candidatos
 - **Abrir votação**: Confirma a configuração (exige ao menos 2 candidatos); a lista de candidatos é travada e os votos passam a ser aceitos
 - **Encerrar eleição**: Impede novos votos
 - **Apurar votos**: Publica o resultado; eleições apuradas não podem ser excluídas
+- **Excluir ou cancelar eleição**: Sem votos, a eleição é excluída; com votos, só pode ser cancelada e fica no histórico
 
 ### 4. Atualizações em Tempo Real
 - **Server-Sent Events (SSE)**: Recebimento de atualizações automáticas
@@ -135,7 +136,9 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 
 ### Endpoints de Administração
 - `GET /users` e `PATCH /users/{id}/candidate`: Listagem de usuários e definição de candidatos
-- `POST /elections` e `DELETE /elections/{id}`: Criação e exclusão de eleições
+- `DELETE /users/{id}` e `POST /users/{id}/reactivate`: Exclusão e reativação de contas
+- `POST /elections` e `DELETE /elections/{id}`: Criação e exclusão de eleições sem votos
+- `POST /elections/{id}/cancel`: Cancelamento de eleição com votos
 - `POST` e `DELETE /elections/{id}/candidates/{candidate_id}`: Vínculo de candidatos
 - `POST /elections/{id}/open`: Abertura da votação
 - `POST /elections/{id}/close`: Encerramento da eleição

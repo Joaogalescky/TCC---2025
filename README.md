@@ -62,6 +62,13 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 3. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
 4. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
 
+Uma eleição aberta ou encerrada que já recebeu votos não pode ser excluída: o administrador pode apenas **cancelá-la**. Ela fica como "Cancelada", não é apurada, e votos e candidatos permanecem como histórico. Sem votos, a eleição pode ser excluída definitivamente.
+
+### Exclusão de contas
+- Quem nunca participou de uma eleição tem a conta excluída definitivamente.
+- Quem já votou, ou foi candidato numa eleição aberta, tem a conta **excluída logicamente**: perde o acesso, mas votos e candidaturas continuam no histórico, e o e-mail e o nome de usuário seguem reservados. O administrador pode reativar a conta.
+- Um candidato que exclui a conta durante a votação continua na cédula, marcado como "(conta excluída)", e pode receber votos.
+
 Detalhes das regras e rotas da API em [fast_backend/README.md](fast_backend/README.md).
 
 ---
