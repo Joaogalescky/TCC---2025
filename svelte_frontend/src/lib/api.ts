@@ -67,6 +67,7 @@ export const api = {
 		request(`/elections/${electionId}/candidates/${candidateId}`, { method: 'POST' }),
 	removeCandidateFromElection: (electionId: number, candidateId: number) =>
 		request(`/elections/${electionId}/candidates/${candidateId}`, { method: 'DELETE' }),
+	openElection: (id: number) => request(`/elections/${id}/open`, { method: 'POST' }),
 	closeElection: (id: number) => request(`/elections/${id}/close`, { method: 'POST' }),
 	tallyElection: (id: number) => request(`/elections/${id}/tally`, { method: 'POST' }),
 	

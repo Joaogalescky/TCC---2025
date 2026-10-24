@@ -102,6 +102,25 @@
 		}
 	}
 
+	async function openElection(election: Election) {
+		if (
+			!confirm(
+				`Abrir a votação de "${election.title}"? Depois disso a lista de candidatos não poderá ser alterada.`,
+			)
+		)
+			return;
+		try {
+			await api.openElection(election.id);
+			showMessage("Votação aberta", "success");
+			await refresh(election);
+		} catch (e) {
+			showMessage(
+				e instanceof ApiError ? e.message : "Erro ao abrir a votação",
+				"error",
+			);
+		}
+	}
+
 	async function closeElection(election: Election) {
 		if (
 			!confirm(
@@ -237,7 +256,15 @@
 											: "Ver Candidatos"}
 									</button>
 									{#if $auth.user?.is_admin}
-										{#if election.status === "open"}
+										{#if election.status === "draft"}
+											<button
+												on:click={() =>
+													openElection(election)}
+												class="mt-2 w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+											>
+												Abrir votação
+											</button>
+										{:else if election.status === "open"}
 											<button
 												on:click={() =>
 													closeElection(election)}
@@ -278,7 +305,16 @@
 					</h2>
 					<ElectionStatusBadge status={selectedElection.status} />
 					{#if $auth.user?.is_admin}
-						{#if selectedElection.status === "open"}
+						{#if selectedElection.status === "draft"}
+							<button
+								on:click={() =>
+									selectedElection &&
+									openElection(selectedElection)}
+								class="ml-auto bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+							>
+								Abrir votação
+							</button>
+						{:else if selectedElection.status === "open"}
 							<button
 								on:click={() =>
 									selectedElection &&
@@ -300,7 +336,14 @@
 					{/if}
 				</div>
 
-				{#if selectedElection.status === "closed"}
+				{#if selectedElection.status === "draft"}
+					<p
+						class="mb-6 text-sm bg-gray-50 text-gray-700 border border-gray-200 rounded-md px-4 py-3"
+					>
+						Eleição em configuração. A votação ainda não foi aberta
+						pelo administrador.
+					</p>
+				{:else if selectedElection.status === "closed"}
 					<p
 						class="mb-6 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-md px-4 py-3"
 					>

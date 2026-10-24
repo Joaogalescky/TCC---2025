@@ -6,7 +6,7 @@ import pytest
 import pytest_asyncio
 
 from src.crypto_service import crypto_service
-from src.models import Election, Election_Candidate, User
+from src.models import Election, Election_Candidate, ElectionStatus, User
 
 
 @pytest_asyncio.fixture
@@ -270,6 +270,7 @@ class StressElectionFactory(factory.Factory):
         model = Election
 
     title = 'Stress Test Election'
+    status = ElectionStatus.OPEN
 
 
 class StressCandidateFactory(factory.Factory):

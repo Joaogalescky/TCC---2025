@@ -109,6 +109,22 @@
 		}
 	}
 
+	async function openElection(election: ElectionWithCandidates) {
+		if (
+			!confirm(
+				`Abrir a votação de "${election.title}"? Depois disso a lista de candidatos não poderá ser alterada.`,
+			)
+		)
+			return;
+		try {
+			await api.openElection(election.id);
+			showMessage("Votação aberta", "success");
+			await loadAll();
+		} catch (e) {
+			showError(e, "Erro ao abrir a votação");
+		}
+	}
+
 	async function closeElection(election: ElectionWithCandidates) {
 		if (
 			!confirm(
@@ -335,7 +351,14 @@
 							{/if}
 						</div>
 
-						{#if election.status === "open"}
+						{#if election.status === "draft"}
+							<button
+								on:click={() => openElection(election)}
+								class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+							>
+								Abrir votação
+							</button>
+						{:else if election.status === "open"}
 							<button
 								on:click={() => closeElection(election)}
 								class="w-full bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
@@ -365,7 +388,7 @@
 											class="flex justify-between items-center py-2"
 										>
 											<span>{candidate.username}</span>
-											{#if election.status === "open"}
+											{#if election.status === "draft"}
 												<button
 													on:click={() =>
 														removeCandidate(
@@ -382,7 +405,7 @@
 								</ul>
 							{/if}
 
-							{#if election.status === "open"}
+							{#if election.status === "draft"}
 								<div class="flex gap-2">
 									<label
 										for="candidate-{election.id}"

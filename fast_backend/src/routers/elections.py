@@ -12,7 +12,6 @@ from src.models import (
     Election_Candidate,
     ElectionStatus,
     User,
-    Vote_Election,
 )
 from src.routers.events import notify_election_change
 from src.routers.vote import compute_results
@@ -128,19 +127,7 @@ async def delete_election(
 async def add_candidate_to_election(
     election_id: int, candidate_id: int, session: Session, admin: CurrentAdmin
 ):
-    election = await _get_open_election(election_id, session)
-
-    # Após o primeiro voto a lista de candidatos não recebe novos nomes
-    first_vote = await session.scalar(
-        select(Vote_Election)
-        .join(Election_Candidate)
-        .where(Election_Candidate.fk_election == election_id)
-    )
-    if first_vote:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Election already has votes',
-        )
+    election = await _get_draft_election(election_id, session)
 
     candidate = await session.scalar(
         select(User).where(User.id == candidate_id, User.is_candidate)
@@ -193,7 +180,7 @@ async def get_election_with_candidates_by_id(election_id: int, session: Session)
 async def remove_candidate_from_election(
     election_id: int, candidate_id: int, session: Session, admin: CurrentAdmin
 ):
-    election = await _get_open_election(election_id, session)
+    election = await _get_draft_election(election_id, session)
 
     election_candidate = await session.scalar(
         select(Election_Candidate).where(
@@ -207,23 +194,34 @@ async def remove_candidate_from_election(
             detail='Candidate not found in this election',
         )
 
-    # Remover o vínculo apagaria votos já registrados para o candidato
-    has_votes = await session.scalar(
-        select(Vote_Election).where(
-            Vote_Election.fk_election_candidate == election_candidate.id
-        )
-    )
-    if has_votes:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Candidate already has votes in this election',
-        )
-
     await session.delete(election_candidate)
     await session.commit()
     await notify_election_change()
 
     return await _election_with_candidates(election, session)
+
+
+@router.post(
+    '/{election_id}/open', status_code=HTTPStatus.OK, response_model=ElectionPublic
+)
+async def open_election(election_id: int, session: Session, admin: CurrentAdmin):
+    # Confirma a configuração: a lista de candidatos é travada e a votação começa
+    election = await _get_draft_election(election_id, session)
+
+    has_candidates = await session.scalar(
+        select(Election_Candidate).where(Election_Candidate.fk_election == election_id)
+    )
+    if not has_candidates:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT, detail='Election has no candidates'
+        )
+
+    election.status = ElectionStatus.OPEN
+    await session.commit()
+    await session.refresh(election)
+    await notify_election_change()
+
+    return election
 
 
 @router.post(
@@ -252,14 +250,14 @@ async def tally_election(election_id: int, session: Session, admin: CurrentAdmin
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
-    if election.status == ElectionStatus.OPEN:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Election must be closed before tallying',
-        )
     if election.status == ElectionStatus.TALLIED:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT, detail='Election already tallied'
+        )
+    if election.status != ElectionStatus.CLOSED:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Election must be closed before tallying',
         )
 
     results = await compute_results(election_id, session)
@@ -272,14 +270,26 @@ async def tally_election(election_id: int, session: Session, admin: CurrentAdmin
 
 
 async def _get_open_election(election_id: int, session: AsyncSession):
+    return await _get_election_in_status(
+        election_id, session, ElectionStatus.OPEN, 'Election is not open'
+    )
+
+
+async def _get_draft_election(election_id: int, session: AsyncSession):
+    return await _get_election_in_status(
+        election_id, session, ElectionStatus.DRAFT, 'Election is not in configuration'
+    )
+
+
+async def _get_election_in_status(
+    election_id: int, session: AsyncSession, status: ElectionStatus, detail: str
+):
     election = await session.scalar(select(Election).where(Election.id == election_id))
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
-    if election.status != ElectionStatus.OPEN:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT, detail='Election is not open'
-        )
+    if election.status != status:
+        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=detail)
 
     return election
 

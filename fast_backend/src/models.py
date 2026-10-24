@@ -37,7 +37,8 @@ class User:
 
 
 class ElectionStatus(StrEnum):
-    # aberta -> encerrada (sem novos votos) -> apurada (resultado publicado)
+    # em configuração (candidatos) -> aberta (votação) -> encerrada -> apurada
+    DRAFT = 'draft'
     OPEN = 'open'
     CLOSED = 'closed'
     TALLIED = 'tallied'
@@ -49,7 +50,7 @@ class Election:
     id: Mapped[int] = mapped_column(init=False, primary_key=True, nullable=False)
     title: Mapped[str] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(
-        nullable=False, default=ElectionStatus.OPEN, server_default=ElectionStatus.OPEN
+        nullable=False, default=ElectionStatus.DRAFT, server_default=ElectionStatus.DRAFT
     )
     created_at: Mapped[datetime] = mapped_column(
         init=False, nullable=False, server_default=func.now()
