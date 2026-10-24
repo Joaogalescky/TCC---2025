@@ -32,9 +32,9 @@ async def test_ensure_admin_promotes_existing_user(session, user):
         session,
         Settings(ADMIN_EMAIL=user.email, ADMIN_USERNAME=None, ADMIN_PASSWORD=None),
     )
-    await session.refresh(user)
+    db_user = await session.scalar(select(User).where(User.id == user.id))
 
-    assert user.is_admin is True
+    assert db_user.is_admin is True
 
 
 @pytest.mark.asyncio

@@ -6,18 +6,22 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src import voting
 from src.database import get_session
 from src.models import (
     Election,
     Election_Candidate,
     Election_Tally,
     ElectionStatus,
+    Lot_Subtotal,
+    Participation,
+    Receipt,
     User,
     Vote_Election,
 )
 from src.routers.events import notify_election_change
-from src.routers.vote import compute_results
 from src.schemas import (
+    AuditReport,
     CandidatePublic,
     ElectionList,
     ElectionPublic,
@@ -124,13 +128,16 @@ async def delete_election(
             detail='Election has votes, cancel it instead',
         )
 
-    # Sem votos, remove junto vínculos e registro para não deixar dados órfãos
-    await session.execute(
-        delete(Election_Candidate).where(Election_Candidate.fk_election == election_id)
-    )
-    await session.execute(
-        delete(Election_Tally).where(Election_Tally.fk_election == election_id)
-    )
+    # Sem votos, remove junto vínculos e registros para não deixar dados órfãos
+    for model in (
+        Election_Candidate,
+        Election_Tally,
+        Lot_Subtotal,
+        Receipt,
+        Participation,
+        Vote_Election,
+    ):
+        await session.execute(delete(model).where(model.fk_election == election_id))
     await session.delete(db_election)
     await session.commit()
     await notify_election_change()
@@ -227,21 +234,24 @@ async def remove_candidate_from_election(
 )
 async def open_election(election_id: int, session: Session, admin: CurrentAdmin):
     # Confirma a configuração: a lista de candidatos é travada e a votação começa
-    election = await _get_draft_election(election_id, session)
+    async with voting.serialized_transaction(session):
+        election = await _get_draft_election(election_id, session)
 
-    candidates_count = await session.scalar(
-        select(func.count(Election_Candidate.id)).where(
-            Election_Candidate.fk_election == election_id
+        candidates_count = await session.scalar(
+            select(func.count(Election_Candidate.id)).where(
+                Election_Candidate.fk_election == election_id
+            )
         )
-    )
-    if candidates_count < MIN_CANDIDATES_TO_OPEN:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Election needs at least two candidates',
-        )
+        if candidates_count < MIN_CANDIDATES_TO_OPEN:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Election needs at least two candidates',
+            )
 
-    election.status = ElectionStatus.OPEN
-    await session.commit()
+        # Posições do vetor 1-hot e total cifrado zero
+        await voting.initialize_election(session, election)
+        election.status = ElectionStatus.OPEN
+        await session.commit()
     await session.refresh(election)
     await notify_election_change()
 
@@ -253,10 +263,13 @@ async def open_election(election_id: int, session: Session, admin: CurrentAdmin)
 )
 async def close_election(election_id: int, session: Session, admin: CurrentAdmin):
     # Encerra a votação: a partir daqui nenhum voto novo é aceito
-    election = await _get_open_election(election_id, session)
+    async with voting.serialized_transaction(session):
+        election = await _get_open_election(election_id, session)
 
-    election.status = ElectionStatus.CLOSED
-    await session.commit()
+        # Fechamento final: o lote aberto vira subtotal, mesmo com poucos votos
+        await voting.close_open_lot(session, election_id)
+        election.status = ElectionStatus.CLOSED
+        await session.commit()
     await session.refresh(election)
     await notify_election_change()
 
@@ -268,18 +281,26 @@ async def close_election(election_id: int, session: Session, admin: CurrentAdmin
 )
 async def cancel_election(election_id: int, session: Session, admin: CurrentAdmin):
     # Exclusão lógica: votos e vínculos são mantidos como histórico, sem apuração
-    election = await session.scalar(select(Election).where(Election.id == election_id))
-    if not election:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
-
-    if election.status not in {ElectionStatus.OPEN, ElectionStatus.CLOSED}:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Only open or closed elections can be cancelled',
+    async with voting.serialized_transaction(session):
+        election = await session.scalar(
+            select(Election).where(Election.id == election_id)
         )
+        if not election:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail='Election not found'
+            )
 
-    election.status = ElectionStatus.CANCELLED
-    await session.commit()
+        if election.status not in {ElectionStatus.OPEN, ElectionStatus.CLOSED}:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Only open or closed elections can be cancelled',
+            )
+
+        # Os votos do lote aberto ficam guardados como subtotal do lote, e não
+        # como votos individuais
+        await voting.close_open_lot(session, election_id)
+        election.status = ElectionStatus.CANCELLED
+        await session.commit()
     await session.refresh(election)
     await notify_election_change()
 
@@ -292,28 +313,44 @@ async def cancel_election(election_id: int, session: Session, admin: CurrentAdmi
     response_model=ElectionResultsSchema,
 )
 async def tally_election(election_id: int, session: Session, admin: CurrentAdmin):
-    # Apura (descriptografa a soma homomórfica) e publica o resultado
+    # Apura com dupla contagem e publica o resultado
+    async with voting.serialized_transaction(session):
+        election = await session.scalar(
+            select(Election).where(Election.id == election_id)
+        )
+        if not election:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail='Election not found'
+            )
+
+        if election.status == ElectionStatus.TALLIED:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT, detail='Election already tallied'
+            )
+        if election.status != ElectionStatus.CLOSED:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Election must be closed before tallying',
+            )
+
+        # Se a verificação falhar, levanta 409 e o status continua CLOSED
+        results = await voting.tally_election(session, election)
+
+        election.status = ElectionStatus.TALLIED
+        await session.commit()
+    await notify_election_change()
+
+    return results
+
+
+@router.get('/{election_id}/audit', status_code=HTTPStatus.OK, response_model=AuditReport)
+async def get_election_audit(election_id: int, session: Session):
+    # Lotes, comprovantes e integridade da cadeia; sem expor textos cifrados
     election = await session.scalar(select(Election).where(Election.id == election_id))
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
-    if election.status == ElectionStatus.TALLIED:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT, detail='Election already tallied'
-        )
-    if election.status != ElectionStatus.CLOSED:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Election must be closed before tallying',
-        )
-
-    results = await compute_results(election_id, session)
-
-    election.status = ElectionStatus.TALLIED
-    await session.commit()
-    await notify_election_change()
-
-    return results
+    return await voting.audit_report(session, election_id)
 
 
 async def _get_open_election(election_id: int, session: AsyncSession):
@@ -362,12 +399,7 @@ async def _election_with_candidates(election: Election, session: AsyncSession):
 
 
 async def _has_votes(election_id: int, session: AsyncSession) -> bool:
-    vote = await session.scalar(
-        select(Vote_Election)
-        .join(Election_Candidate)
-        .where(Election_Candidate.fk_election == election_id)
-    )
-    return vote is not None
+    return await voting.has_votes(session, election_id)
 
 
 async def _public(election: Election, session: AsyncSession) -> ElectionPublic:

@@ -2,20 +2,18 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.crypto_service import crypto_service
+from src import voting
 from src.database import get_session
-from src.models import (
-    Election,
-    Election_Candidate,
-    Election_Tally,
-    ElectionStatus,
-    User,
-    Vote_Election,
+from src.models import Election, ElectionStatus, User
+from src.schemas import (
+    ElectionResultsSchema,
+    ReceiptStatus,
+    VoteResponse,
+    VoteSchema,
 )
-from src.schemas import ElectionResultsSchema, VoteResponse, VoteSchema
 from src.security import get_current_user
 
 router = APIRouter(prefix='/vote', tags=['vote'])
@@ -29,114 +27,11 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 async def cast_vote(
     election_id: int, vote: VoteSchema, session: Session, current_user: CurrentUser
 ):
-    election = await session.scalar(select(Election).where(Election.id == election_id))
-    if not election:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
-
-    if election.status != ElectionStatus.OPEN:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT, detail='Election is not open for voting'
-        )
-
-    election_candidate = await session.scalar(
-        select(Election_Candidate).where(
-            Election_Candidate.fk_election == election_id,
-            Election_Candidate.fk_candidate == vote.candidate_id,
-        )
+    # Não registrar o comprovante em log nem ligá-lo ao usuário
+    receipt = await voting.cast_vote(
+        session, election_id, current_user, vote.candidate_id
     )
-    if not election_candidate:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Candidate not found in this election',
-        )
-
-    existing_vote = await session.scalar(
-        select(Vote_Election)
-        .join(
-            Election_Candidate,
-            Vote_Election.fk_election_candidate == Election_Candidate.id,
-        )
-        .where(
-            Vote_Election.fk_user == current_user.id,
-            Election_Candidate.fk_election == election_id,
-        )
-    )
-    if existing_vote:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT, detail='User already voted in this election'
-        )
-
-    # Configurar criptografia se necessário
-    if not crypto_service.cc:
-        crypto_service.setup_crypto()
-
-    # Encriptar o valor "1" com validação e prova ZK
-    encrypted_vote, zk_proof = crypto_service.encrypt_vote_with_proof([1])
-
-    # Verificar prova ZK
-    if not crypto_service.verify_zk_proof(zk_proof, 1):
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail='Invalid ZK proof for vote'
-        )
-
-    # Salvar voto criptografado com prova
-    db_vote = Vote_Election(
-        fk_user=current_user.id,
-        fk_election_candidate=election_candidate.id,
-        encrypted_vote=encrypted_vote,
-        zk_proof=zk_proof,
-    )
-    session.add(db_vote)
-
-    # Atualizar tally da eleição
-    tally = await session.scalar(
-        select(Election_Tally).where(Election_Tally.fk_election == election_id)
-    )
-
-    if not tally:
-        # Criar tally inicial
-        candidates_count = await session.scalar(
-            select(func.count(Election_Candidate.id)).where(
-                Election_Candidate.fk_election == election_id
-            )
-        )
-        encrypted_tally = crypto_service.create_zero_tally(candidates_count)
-        tally = Election_Tally(
-            fk_election=election_id,
-            encrypted_tally=encrypted_tally,
-            total_candidates=candidates_count,
-        )
-        session.add(tally)
-    # Se tally não existe no cache, cria ele
-    elif tally.encrypted_tally not in crypto_service.ciphertext_cache:
-        encrypted_tally = crypto_service.create_zero_tally(tally.total_candidates)
-
-        # Buscar todos os votos já registrados
-        existing_votes = await session.scalars(
-            select(Vote_Election)
-            .join(Election_Candidate)
-            .where(Election_Candidate.fk_election == election_id)
-        )
-
-        # Somar todos os votos existentes
-        for existing_vote in existing_votes.all():
-            if existing_vote.encrypted_vote in crypto_service.ciphertext_cache:
-                encrypted_tally = crypto_service.add_vote_to_tally(
-                    encrypted_tally, existing_vote.encrypted_vote
-                )
-
-        tally.encrypted_tally = encrypted_tally
-
-    # Somar voto ao tally (soma homomórfica)
-    tally.encrypted_tally = crypto_service.add_vote_to_tally(
-        tally.encrypted_tally, encrypted_vote
-    )
-
-    current_user.statusVotacao = True
-    await session.commit()
-    await session.refresh(db_vote)
-
-    return VoteResponse(message='Vote cast successfully', vote_id=db_vote.id)
+    return VoteResponse(message='Vote cast successfully', receipt=receipt)
 
 
 @router.get(
@@ -145,8 +40,7 @@ async def cast_vote(
     response_model=ElectionResultsSchema,
 )
 async def get_election_results(election_id: int, session: Session):
-    # Resultado publicado: disponível para todos após a apuração pelo administrador
-
+    # Resultado publicado na apuração; nada é decifrado aqui
     election = await session.scalar(select(Election).where(Election.id == election_id))
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
@@ -156,55 +50,16 @@ async def get_election_results(election_id: int, session: Session):
             status_code=HTTPStatus.CONFLICT, detail='Election has not been tallied yet'
         )
 
-    return await compute_results(election_id, session)
+    return await voting.published_results(session, election_id)
 
 
-async def compute_results(election_id: int, session: AsyncSession):
-    # Obtém os resultados descriptografados de uma eleição
-
-    # Contar votos por candidato usando soma homomórfica
-    election_candidates = await session.scalars(
-        select(Election_Candidate).where(Election_Candidate.fk_election == election_id)
-    )
-    candidates_list = election_candidates.all()
-
-    # Para cada candidato, somar todos os votos criptografados
-    candidates_results = []
-    total_votes = 0
-
-    if not crypto_service.cc:
-        crypto_service.setup_crypto()
-
-    for ec in candidates_list:
-        # Obter todos os votos para este candidato
-        votes = await session.scalars(
-            select(Vote_Election).where(Vote_Election.fk_election_candidate == ec.id)
-        )
-        votes_list = votes.all()
-
-        # Somar homomorficamente todos os votos
-        if votes_list:
-            candidate_tally = votes_list[0].encrypted_vote
-            for vote in votes_list[1:]:
-                candidate_tally = crypto_service.add_vote_to_tally(
-                    candidate_tally, vote.encrypted_vote
-                )
-
-            # Descriptografar o total para este candidato
-            decrypted_votes = crypto_service.decrypt_tally(candidate_tally, 1)[0]
-        else:
-            decrypted_votes = 0
-
-        candidate = await session.scalar(select(User).where(User.id == ec.fk_candidate))
-        total_votes += decrypted_votes
-
-        candidates_results.append({
-            'id': candidate.id,
-            'username': candidate.username,
-            'is_deleted': candidate.is_deleted,
-            'votes': decrypted_votes,
-        })
-
-    return ElectionResultsSchema(
-        election_id=election_id, candidates=candidates_results, total_votes=total_votes
-    )
+@router.get(
+    '/receipt/{election_id}/{receipt_hash}',
+    status_code=HTTPStatus.OK,
+    response_model=ReceiptStatus,
+)
+async def check_receipt(election_id: int, receipt_hash: str, session: Session):
+    status = await voting.receipt_status(session, election_id, receipt_hash.lower())
+    if status is None:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Receipt not found')
+    return status

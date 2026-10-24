@@ -1,5 +1,13 @@
+import os
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime
+
+# Lotes pequenos e chaves temporárias nos testes; definido antes de importar a
+# aplicação porque as configurações são lidas na importação dos módulos
+os.environ['LOTE_TAMANHO'] = '5'
+os.environ['LOTE_MINIMO_DECIFRAR'] = '2'
+os.environ['KEYS_DIR'] = tempfile.mkdtemp(prefix='tcc-keys-')
 
 import factory
 import pytest
@@ -80,6 +88,15 @@ def mock_db_time():
     return _mock_db_time
 
 
+def _detach(session, obj):
+    """
+    Desliga o objeto da sessão compartilhada com a aplicação: um rollback da
+    aplicação (ex.: 409 dentro de uma transação de voto) expiraria o objeto, e
+    ler seus atributos no teste tentaria uma carga síncrona fora do async.
+    """
+    session.expunge(obj)
+
+
 @pytest_asyncio.fixture
 async def user(session):
     password = 'testtest'
@@ -88,6 +105,7 @@ async def user(session):
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    _detach(session, user)
 
     user.clean_password = password
 
@@ -102,6 +120,7 @@ async def other_user(session):
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    _detach(session, user)
 
     user.clean_password = password
 
@@ -128,6 +147,7 @@ async def admin(session):
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    _detach(session, user)
 
     user.clean_password = password
 
@@ -154,6 +174,7 @@ async def candidate(session):
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    _detach(session, user)
 
     user.clean_password = password
 
@@ -183,4 +204,5 @@ async def election(session):
     session.add(election)
     await session.commit()
     await session.refresh(election)
+    _detach(session, election)
     return election

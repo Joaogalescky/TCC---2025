@@ -30,6 +30,11 @@
 	let selectedElection: ElectionWithCandidates | null = null;
 	// Resultado publicado da eleição selecionada (somente se apurada)
 	let selectedResults: ElectionResultsData | null = null;
+	// Comprovante do último voto, mostrado uma vez (não é guardado no navegador)
+	let lastReceipt: { title: string; receipt: string } | null = null;
+	let copied = false;
+	let receiptInput = "";
+	let receiptCheck = "";
 	let loading = false;
 	let voting = false;
 	let message = "";
@@ -92,7 +97,12 @@
 
 		voting = true;
 		try {
-			await api.vote(selectedElection.id, candidateId);
+			const result = await api.vote(selectedElection.id, candidateId);
+			lastReceipt = {
+				title: selectedElection.title,
+				receipt: result.receipt,
+			};
+			copied = false;
 			showMessage("Voto registrado com sucesso!", "success");
 			selectedElection = null;
 		} catch (e) {
@@ -101,6 +111,35 @@
 			showMessage(errorMsg, "error");
 		} finally {
 			voting = false;
+		}
+	}
+
+	async function copyReceipt() {
+		if (!lastReceipt) return;
+		try {
+			await navigator.clipboard.writeText(lastReceipt.receipt);
+			copied = true;
+		} catch {
+			showMessage("Não foi possível copiar; selecione o código", "error");
+		}
+	}
+
+	async function checkReceipt() {
+		if (!selectedElection || !receiptInput.trim()) return;
+		try {
+			const status = await api.checkReceipt(
+				selectedElection.id,
+				receiptInput,
+			);
+			receiptCheck =
+				status.status === "registered"
+					? `Registrado no lote ${status.lote}.`
+					: "Pendente: o voto está no lote aberto e será registrado quando o lote fechar.";
+		} catch (e) {
+			receiptCheck =
+				e instanceof ApiError && e.status === 404
+					? "Comprovante não encontrado nesta eleição."
+					: "Erro ao conferir o comprovante.";
 		}
 	}
 
@@ -215,6 +254,40 @@
 	<main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
 		{#if !selectedElection}
 			<div class="px-4 py-6 sm:px-0">
+				{#if lastReceipt}
+					<div
+						class="mb-6 bg-white border border-green-300 rounded-lg p-5 space-y-3"
+					>
+						<div class="flex justify-between items-start gap-4">
+							<h3 class="text-lg font-medium text-gray-900">
+								Comprovante do seu voto em {lastReceipt.title}
+							</h3>
+							<button
+								on:click={() => (lastReceipt = null)}
+								class="text-sm text-gray-500 hover:text-gray-700"
+							>
+								Fechar
+							</button>
+						</div>
+						<div class="flex flex-wrap items-center gap-2">
+							<code
+								class="flex-1 min-w-0 break-all text-sm bg-gray-50 border border-gray-200 rounded px-3 py-2 select-all"
+								>{lastReceipt.receipt}</code
+							>
+							<button
+								on:click={copyReceipt}
+								class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+							>
+								{copied ? "Copiado" : "Copiar"}
+							</button>
+						</div>
+						<p class="text-sm text-gray-600">
+							Guarde este código para conferir que seu voto foi
+							registrado. Ele não revela em quem você votou.
+						</p>
+					</div>
+				{/if}
+
 				<h2 class="text-2xl font-bold text-gray-900 mb-6">
 					Eleições Disponíveis
 				</h2>
@@ -294,7 +367,11 @@
 			<div class="px-4 py-6 sm:px-0">
 				<div class="mb-6">
 					<button
-						on:click={() => (selectedElection = null)}
+						on:click={() => {
+							selectedElection = null;
+							receiptInput = "";
+							receiptCheck = "";
+						}}
 						class="text-blue-600 hover:text-blue-500"
 					>
 						← Voltar às eleições
@@ -411,6 +488,36 @@
 							</div>
 						{/each}
 					</div>
+				{/if}
+
+				{#if selectedElection.status !== "draft"}
+					<form
+						class="mt-8 max-w-2xl bg-white shadow rounded-lg p-5 space-y-3"
+						on:submit|preventDefault={checkReceipt}
+					>
+						<label
+							for="receipt-input"
+							class="block text-sm font-medium text-gray-900"
+							>Conferir comprovante</label
+						>
+						<div class="flex flex-wrap gap-2">
+							<input
+								id="receipt-input"
+								bind:value={receiptInput}
+								placeholder="Cole aqui o código do comprovante"
+								class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+							/>
+							<button
+								type="submit"
+								class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+							>
+								Conferir
+							</button>
+						</div>
+						{#if receiptCheck}
+							<p class="text-sm text-gray-700">{receiptCheck}</p>
+						{/if}
+					</form>
 				{/if}
 			</div>
 		{/if}

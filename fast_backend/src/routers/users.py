@@ -13,8 +13,8 @@ from src.models import (
     Election,
     Election_Candidate,
     ElectionStatus,
+    Participation,
     User,
-    Vote_Election,
 )
 from src.routers.events import notify_election_change
 from src.schemas import (
@@ -253,7 +253,7 @@ async def reactivate_user(user_id: int, session: Session, admin: CurrentAdmin):
 async def _has_participated(user_id: int, session: AsyncSession) -> bool:
     # Participou: votou em alguma eleição ou é candidato numa eleição já aberta
     voted = await session.scalar(
-        select(Vote_Election).where(Vote_Election.fk_user == user_id)
+        select(Participation).where(Participation.fk_user == user_id)
     )
     if voted:
         return True
