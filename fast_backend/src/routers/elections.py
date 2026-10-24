@@ -7,12 +7,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
-from src.models import Election, Election_Candidate, User, Vote_Election
+from src.models import (
+    Election,
+    Election_Candidate,
+    ElectionStatus,
+    User,
+    Vote_Election,
+)
 from src.routers.events import notify_election_change
+from src.routers.vote import compute_results
 from src.schemas import (
     CandidatePublic,
     ElectionList,
     ElectionPublic,
+    ElectionResultsSchema,
     ElectionSchema,
     ElectionWithCandidates,
     FilterPage,
@@ -113,9 +121,7 @@ async def delete_election(
 async def add_candidate_to_election(
     election_id: int, candidate_id: int, session: Session, admin: CurrentAdmin
 ):
-    election = await session.scalar(select(Election).where(Election.id == election_id))
-    if not election:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+    election = await _get_open_election(election_id, session)
 
     candidate = await session.scalar(
         select(User).where(User.id == candidate_id, User.is_candidate)
@@ -168,9 +174,7 @@ async def get_election_with_candidates_by_id(election_id: int, session: Session)
 async def remove_candidate_from_election(
     election_id: int, candidate_id: int, session: Session, admin: CurrentAdmin
 ):
-    election = await session.scalar(select(Election).where(Election.id == election_id))
-    if not election:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+    election = await _get_open_election(election_id, session)
 
     election_candidate = await session.scalar(
         select(Election_Candidate).where(
@@ -203,6 +207,64 @@ async def remove_candidate_from_election(
     return await _election_with_candidates(election, session)
 
 
+@router.post(
+    '/{election_id}/close', status_code=HTTPStatus.OK, response_model=ElectionPublic
+)
+async def close_election(election_id: int, session: Session, admin: CurrentAdmin):
+    # Encerra a votação: a partir daqui nenhum voto novo é aceito
+    election = await _get_open_election(election_id, session)
+
+    election.status = ElectionStatus.CLOSED
+    await session.commit()
+    await session.refresh(election)
+    await notify_election_change()
+
+    return election
+
+
+@router.post(
+    '/{election_id}/tally',
+    status_code=HTTPStatus.OK,
+    response_model=ElectionResultsSchema,
+)
+async def tally_election(election_id: int, session: Session, admin: CurrentAdmin):
+    # Apura (descriptografa a soma homomórfica) e publica o resultado
+    election = await session.scalar(select(Election).where(Election.id == election_id))
+    if not election:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+
+    if election.status == ElectionStatus.OPEN:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Election must be closed before tallying',
+        )
+    if election.status == ElectionStatus.TALLIED:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT, detail='Election already tallied'
+        )
+
+    results = await compute_results(election_id, session)
+
+    election.status = ElectionStatus.TALLIED
+    await session.commit()
+    await notify_election_change()
+
+    return results
+
+
+async def _get_open_election(election_id: int, session: AsyncSession):
+    election = await session.scalar(select(Election).where(Election.id == election_id))
+    if not election:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+
+    if election.status != ElectionStatus.OPEN:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT, detail='Election is not open'
+        )
+
+    return election
+
+
 async def _election_with_candidates(election: Election, session: AsyncSession):
     candidates_query = await session.scalars(
         select(User)
@@ -214,5 +276,8 @@ async def _election_with_candidates(election: Election, session: AsyncSession):
     ]
 
     return ElectionWithCandidates(
-        id=election.id, title=election.title, candidates=candidates
+        id=election.id,
+        title=election.title,
+        status=election.status,
+        candidates=candidates,
     )

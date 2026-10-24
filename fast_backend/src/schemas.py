@@ -49,12 +49,14 @@ class ElectionSchema(BaseModel):
 class ElectionPublic(BaseModel):
     id: int
     title: str
+    status: str
     model_config = ConfigDict(from_attributes=True)
 
 
 class ElectionWithCandidates(BaseModel):
     id: int
     title: str
+    status: str
     candidates: List[CandidatePublic]
     model_config = ConfigDict(from_attributes=True)
 

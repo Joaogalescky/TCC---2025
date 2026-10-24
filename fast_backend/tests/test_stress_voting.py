@@ -207,7 +207,9 @@ async def test_crypto_overflow_protection():
 
 # Teste de API com múltiplos usuários
 @pytest.mark.asyncio
-async def test_api_stress_multiple_users(client, stress_election_setup, session):
+async def test_api_stress_multiple_users(
+    client, stress_election_setup, session, admin_token
+):
     """Teste de estresse da API com múltiplos usuários"""
     election, candidates = stress_election_setup
 
@@ -246,6 +248,11 @@ async def test_api_stress_multiple_users(client, stress_election_setup, session)
 
         if vote_response.status_code == HTTPStatus.CREATED:
             vote_count += 1
+
+    # Encerrar e apurar (resultado só é publicado após a apuração)
+    admin_headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/close', headers=admin_headers)
+    client.post(f'/elections/{election.id}/tally', headers=admin_headers)
 
     # Verificar resultados
     results_response = client.get(f'/vote/results/{election.id}')

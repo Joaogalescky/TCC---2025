@@ -5,6 +5,10 @@
 	import { api, ApiError } from "../../lib/api";
 	import { auth, authActions, type User } from "../../lib/stores/auth";
 	import Toast from "$lib/components/Toast.svelte";
+	import ElectionStatusBadge from "$lib/components/ElectionStatusBadge.svelte";
+	import ElectionResults, {
+		type ElectionResultsData,
+	} from "$lib/components/ElectionResults.svelte";
 
 	interface Candidate {
 		id: number;
@@ -14,12 +18,15 @@
 	interface ElectionWithCandidates {
 		id: number;
 		title: string;
+		status: string;
 		candidates: Candidate[];
 	}
 
 	let users: User[] = [];
 	let candidates: Candidate[] = [];
 	let elections: ElectionWithCandidates[] = [];
+	// Resultados das eleições já apuradas, por id da eleição
+	let results: Record<number, ElectionResultsData> = {};
 	let newElectionTitle = "";
 	// Candidato escolhido no seletor de cada eleição
 	let selectedCandidate: Record<number, number | ""> = {};
@@ -50,6 +57,13 @@
 				electionsResponse.elections.map((e: { id: number }) =>
 					api.getElectionCandidates(e.id),
 				),
+			);
+			const tallied = elections.filter((e) => e.status === "tallied");
+			const talliedResults = await Promise.all(
+				tallied.map((e) => api.getResults(e.id)),
+			);
+			results = Object.fromEntries(
+				talliedResults.map((r: ElectionResultsData) => [r.election_id, r]),
 			);
 		} catch (e) {
 			showError(e, "Erro ao carregar dados");
@@ -92,6 +106,32 @@
 			await loadAll();
 		} catch (e) {
 			showError(e, "Erro ao excluir eleição");
+		}
+	}
+
+	async function closeElection(election: ElectionWithCandidates) {
+		if (
+			!confirm(
+				`Encerrar "${election.title}"? Nenhum voto novo será aceito.`,
+			)
+		)
+			return;
+		try {
+			await api.closeElection(election.id);
+			showMessage("Eleição encerrada", "success");
+			await loadAll();
+		} catch (e) {
+			showError(e, "Erro ao encerrar eleição");
+		}
+	}
+
+	async function tallyElection(election: ElectionWithCandidates) {
+		try {
+			await api.tallyElection(election.id);
+			showMessage("Votos apurados e resultado publicado", "success");
+			await loadAll();
+		} catch (e) {
+			showError(e, "Erro ao apurar votos");
 		}
 	}
 
@@ -279,9 +319,12 @@
 				{#each elections as election}
 					<div class="bg-white shadow rounded-lg p-5 space-y-4">
 						<div class="flex justify-between items-start gap-2">
-							<h3 class="text-lg font-medium text-gray-900">
-								{election.title}
-							</h3>
+							<div class="flex flex-wrap items-center gap-2">
+								<h3 class="text-lg font-medium text-gray-900">
+									{election.title}
+								</h3>
+								<ElectionStatusBadge status={election.status} />
+							</div>
 							<button
 								on:click={() => deleteElection(election)}
 								class="text-sm text-red-600 hover:text-red-500"
@@ -290,57 +333,81 @@
 							</button>
 						</div>
 
-						{#if election.candidates.length === 0}
-							<p class="text-sm text-gray-500">
-								Nenhum candidato vinculado
-							</p>
-						{:else}
-							<ul class="divide-y divide-gray-100">
-								{#each election.candidates as candidate}
-									<li
-										class="flex justify-between items-center py-2"
-									>
-										<span>{candidate.username}</span>
-										<button
-											on:click={() =>
-												removeCandidate(
-													election,
-													candidate,
-												)}
-											class="text-sm text-gray-500 hover:text-red-600"
-										>
-											Remover
-										</button>
-									</li>
-								{/each}
-							</ul>
+						{#if election.status === "open"}
+							<button
+								on:click={() => closeElection(election)}
+								class="w-full bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+							>
+								Encerrar eleição
+							</button>
+						{:else if election.status === "closed"}
+							<button
+								on:click={() => tallyElection(election)}
+								class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+							>
+								Apurar votos
+							</button>
 						{/if}
 
-						<div class="flex gap-2">
-							<label
-								for="candidate-{election.id}"
-								class="sr-only">Candidato</label
-							>
-							<select
-								id="candidate-{election.id}"
-								bind:value={selectedCandidate[election.id]}
-								class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md"
-							>
-								<option value="">Selecione um candidato</option>
-								{#each availableCandidates(election) as candidate}
-									<option value={candidate.id}
-										>{candidate.username}</option
+						{#if election.status === "tallied" && results[election.id]}
+							<ElectionResults results={results[election.id]} />
+						{:else}
+							{#if election.candidates.length === 0}
+								<p class="text-sm text-gray-500">
+									Nenhum candidato vinculado
+								</p>
+							{:else}
+								<ul class="divide-y divide-gray-100">
+									{#each election.candidates as candidate}
+										<li
+											class="flex justify-between items-center py-2"
+										>
+											<span>{candidate.username}</span>
+											{#if election.status === "open"}
+												<button
+													on:click={() =>
+														removeCandidate(
+															election,
+															candidate,
+														)}
+													class="text-sm text-gray-500 hover:text-red-600"
+												>
+													Remover
+												</button>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+
+							{#if election.status === "open"}
+								<div class="flex gap-2">
+									<label
+										for="candidate-{election.id}"
+										class="sr-only">Candidato</label
 									>
-								{/each}
-							</select>
-							<button
-								on:click={() => addCandidate(election)}
-								disabled={!selectedCandidate[election.id]}
-								class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-							>
-								Vincular
-							</button>
-						</div>
+									<select
+										id="candidate-{election.id}"
+										bind:value={selectedCandidate[election.id]}
+										class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md"
+									>
+										<option value="">Selecione um candidato</option>
+										{#each availableCandidates(election) as candidate}
+											<option value={candidate.id}
+												>{candidate.username}</option
+											>
+										{/each}
+									</select>
+									<button
+										on:click={() => addCandidate(election)}
+										disabled={!selectedCandidate[election.id]}
+										class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+									>
+										Vincular
+									</button>
+								</div>
+							{/if}
+						{/if}
 					</div>
 				{/each}
 			</div>

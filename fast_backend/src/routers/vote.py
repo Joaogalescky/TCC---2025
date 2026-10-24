@@ -11,6 +11,7 @@ from src.models import (
     Election,
     Election_Candidate,
     Election_Tally,
+    ElectionStatus,
     User,
     Vote_Election,
 )
@@ -28,6 +29,15 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 async def cast_vote(
     election_id: int, vote: VoteSchema, session: Session, current_user: CurrentUser
 ):
+    election = await session.scalar(select(Election).where(Election.id == election_id))
+    if not election:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
+
+    if election.status != ElectionStatus.OPEN:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT, detail='Election is not open for voting'
+        )
+
     election_candidate = await session.scalar(
         select(Election_Candidate).where(
             Election_Candidate.fk_election == election_id,
@@ -140,20 +150,22 @@ async def cast_vote(
     response_model=ElectionResultsSchema,
 )
 async def get_election_results(election_id: int, session: Session):
-    # Obtém os resultados descriptografados de uma eleição
+    # Resultado publicado: disponível para todos após a apuração pelo administrador
 
     election = await session.scalar(select(Election).where(Election.id == election_id))
     if not election:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Election not found')
 
-    # Obter tally criptografado
-    tally = await session.scalar(
-        select(Election_Tally).where(Election_Tally.fk_election == election_id)
-    )
-    if not tally:
+    if election.status != ElectionStatus.TALLIED:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='No votes found for this election'
+            status_code=HTTPStatus.CONFLICT, detail='Election has not been tallied yet'
         )
+
+    return await compute_results(election_id, session)
+
+
+async def compute_results(election_id: int, session: AsyncSession):
+    # Obtém os resultados descriptografados de uma eleição
 
     # Contar votos por candidato usando soma homomórfica
     election_candidates = await session.scalars(

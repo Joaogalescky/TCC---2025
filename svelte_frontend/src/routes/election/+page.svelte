@@ -5,10 +5,15 @@
 	import { api, ApiError, API_BASE } from "../../lib/api";
 	import { auth, authActions } from "../../lib/stores/auth";
 	import Toast from "$lib/components/Toast.svelte";
+	import ElectionStatusBadge from "$lib/components/ElectionStatusBadge.svelte";
+	import ElectionResults, {
+		type ElectionResultsData,
+	} from "$lib/components/ElectionResults.svelte";
 
 	interface Election {
 		id: number;
 		title: string;
+		status: string;
 	}
 
 	interface Candidate {
@@ -22,6 +27,8 @@
 
 	let elections: Election[] = [];
 	let selectedElection: ElectionWithCandidates | null = null;
+	// Resultado publicado da eleição selecionada (somente se apurada)
+	let selectedResults: ElectionResultsData | null = null;
 	let loading = false;
 	let voting = false;
 	let message = "";
@@ -42,10 +49,7 @@
 			eventSource.onmessage = () => {
 				loadElections();
 				if (selectedElection) {
-					selectElection({
-						id: selectedElection.id,
-						title: selectedElection.title,
-					});
+					selectElection(selectedElection);
 				}
 			};
 			return () => {
@@ -70,6 +74,10 @@
 		loading = true;
 		try {
 			selectedElection = await api.getElectionCandidates(election.id);
+			selectedResults =
+				selectedElection?.status === "tallied"
+					? await api.getResults(election.id)
+					: null;
 		} catch (e) {
 			showMessage("Erro ao carregar candidatos", "error");
 		} finally {
@@ -91,6 +99,45 @@
 			showMessage(errorMsg, "error");
 		} finally {
 			voting = false;
+		}
+	}
+
+	async function closeElection(election: Election) {
+		if (
+			!confirm(
+				`Encerrar "${election.title}"? Nenhum voto novo será aceito.`,
+			)
+		)
+			return;
+		try {
+			await api.closeElection(election.id);
+			showMessage("Eleição encerrada", "success");
+			await refresh(election);
+		} catch (e) {
+			showMessage(
+				e instanceof ApiError ? e.message : "Erro ao encerrar eleição",
+				"error",
+			);
+		}
+	}
+
+	async function tallyElection(election: Election) {
+		try {
+			await api.tallyElection(election.id);
+			showMessage("Votos apurados e resultado publicado", "success");
+			await refresh(election);
+		} catch (e) {
+			showMessage(
+				e instanceof ApiError ? e.message : "Erro ao apurar votos",
+				"error",
+			);
+		}
+	}
+
+	async function refresh(election: Election) {
+		await loadElections();
+		if (selectedElection?.id === election.id) {
+			await selectElection(election);
 		}
 	}
 
@@ -168,18 +215,46 @@
 								class="bg-white overflow-hidden shadow rounded-lg"
 							>
 								<div class="px-4 py-5 sm:p-6">
-									<h3
-										class="text-lg font-medium text-gray-900 mb-4"
+									<div
+										class="flex flex-wrap items-center justify-between gap-2 mb-4"
 									>
-										{election.title}
-									</h3>
+										<h3
+											class="text-lg font-medium text-gray-900"
+										>
+											{election.title}
+										</h3>
+										<ElectionStatusBadge
+											status={election.status}
+										/>
+									</div>
 									<button
 										on:click={() =>
 											selectElection(election)}
 										class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
 									>
-										Ver Candidatos
+										{election.status === "tallied"
+											? "Ver Resultado"
+											: "Ver Candidatos"}
 									</button>
+									{#if $auth.user?.is_admin}
+										{#if election.status === "open"}
+											<button
+												on:click={() =>
+													closeElection(election)}
+												class="mt-2 w-full bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+											>
+												Encerrar eleição
+											</button>
+										{:else if election.status === "closed"}
+											<button
+												on:click={() =>
+													tallyElection(election)}
+												class="mt-2 w-full bg-white text-blue-700 border border-blue-600 px-4 py-2 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+											>
+												Apurar votos
+											</button>
+										{/if}
+									{/if}
 								</div>
 							</div>
 						{/each}
@@ -197,15 +272,55 @@
 					</button>
 				</div>
 
-				<h2 class="text-2xl font-bold text-gray-900 mb-6">
-					{selectedElection.title}
-				</h2>
+				<div class="flex flex-wrap items-center gap-3 mb-6">
+					<h2 class="text-2xl font-bold text-gray-900">
+						{selectedElection.title}
+					</h2>
+					<ElectionStatusBadge status={selectedElection.status} />
+					{#if $auth.user?.is_admin}
+						{#if selectedElection.status === "open"}
+							<button
+								on:click={() =>
+									selectedElection &&
+									closeElection(selectedElection)}
+								class="ml-auto bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+							>
+								Encerrar eleição
+							</button>
+						{:else if selectedElection.status === "closed"}
+							<button
+								on:click={() =>
+									selectedElection &&
+									tallyElection(selectedElection)}
+								class="ml-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+							>
+								Apurar votos
+							</button>
+						{/if}
+					{/if}
+				</div>
+
+				{#if selectedElection.status === "closed"}
+					<p
+						class="mb-6 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-md px-4 py-3"
+					>
+						Votação encerrada. O resultado será publicado após a
+						apuração.
+					</p>
+				{/if}
 
 				{#if loading}
 					<div class="text-center py-8">
 						<div class="text-gray-500">
 							Carregando candidatos...
 						</div>
+					</div>
+				{:else if selectedResults}
+					<div class="bg-white shadow rounded-lg p-6 max-w-2xl">
+						<h3 class="text-lg font-medium text-gray-900 mb-4">
+							Resultado da apuração
+						</h3>
+						<ElectionResults results={selectedResults} />
 					</div>
 				{:else if selectedElection.candidates.length === 0}
 					<div class="text-center py-8">
@@ -225,13 +340,15 @@
 									>
 										{candidate.username}
 									</h3>
-									<button
-										on:click={() => vote(candidate.id)}
-										disabled={voting}
-										class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
-									>
-										{voting ? "Votando..." : "Votar"}
-									</button>
+									{#if selectedElection.status === "open"}
+										<button
+											on:click={() => vote(candidate.id)}
+											disabled={voting}
+											class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+										>
+											{voting ? "Votando..." : "Votar"}
+										</button>
+									{/if}
 								</div>
 							</div>
 						{/each}

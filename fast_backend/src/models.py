@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import Boolean, ForeignKey, func, text
 from sqlalchemy.orm import Mapped, mapped_column, registry
@@ -35,11 +36,21 @@ class User:
     )
 
 
+class ElectionStatus(StrEnum):
+    # aberta -> encerrada (sem novos votos) -> apurada (resultado publicado)
+    OPEN = 'open'
+    CLOSED = 'closed'
+    TALLIED = 'tallied'
+
+
 @table_registry.mapped_as_dataclass
 class Election:
     __tablename__ = 'eleicoes'
     id: Mapped[int] = mapped_column(init=False, primary_key=True, nullable=False)
     title: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(
+        nullable=False, default=ElectionStatus.OPEN, server_default=ElectionStatus.OPEN
+    )
     created_at: Mapped[datetime] = mapped_column(
         init=False, nullable=False, server_default=func.now()
     )
