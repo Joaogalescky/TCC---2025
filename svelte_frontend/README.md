@@ -18,8 +18,7 @@ Este diretório implementa a interface de usuário do sistema de eleição eletr
 ### Ferramentas de Desenvolvimento
 - **Vite**: Bundler e servidor de desenvolvimento
 - **Vitest**: Framework de testes unitários
-- **Playwright**: Ferramenta para testes end-to-end
-- **ESLint**: Linter para análise estática de código
+- **Playwright**: Navegador usado pelo Vitest nos testes de componentes
 
 ## Estrutura do Projeto
 
@@ -44,7 +43,6 @@ svelte_frontend/
 │   ├── app.html               # Template HTML base
 │   └── app.d.ts               # Definições de tipos TypeScript
 ├── static/                    # Arquivos estáticos
-├── tests/                     # Testes automatizados
 └── package.json              # Configurações e dependências
 ```
 
@@ -58,13 +56,14 @@ svelte_frontend/
 ### 2. Interface de Votação
 - **Listagem de Eleições**: Visualização de eleições disponíveis e do status de cada uma
 - **Seleção de Candidatos**: Interface para escolha de candidatos
-- **Processo de Votação**: Submissão segura de votos criptografados, apenas com a eleição aberta
+- **Processo de Votação**: Submissão segura de votos criptografados, apenas com a eleição aberta (eleições em configuração aparecem sem a opção de votar)
 - **Resultado**: Exibido para todos após a apuração
 
 ### 3. Administração
 Disponível em `/admin` e nos botões da tela de eleições, apenas para o administrador:
 - **Usuários**: Marcar ou desmarcar usuários como candidatos
-- **Eleições**: Criar eleições e vincular ou remover candidatos (até o primeiro voto)
+- **Eleições**: Criar eleições (em configuração) e vincular ou remover candidatos
+- **Abrir votação**: Confirma a configuração; a lista de candidatos é travada e os votos passam a ser aceitos
 - **Encerrar eleição**: Impede novos votos
 - **Apurar votos**: Publica o resultado; eleições apuradas não podem ser excluídas
 
@@ -138,6 +137,7 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 - `GET /users` e `PATCH /users/{id}/candidate`: Listagem de usuários e definição de candidatos
 - `POST /elections` e `DELETE /elections/{id}`: Criação e exclusão de eleições
 - `POST` e `DELETE /elections/{id}/candidates/{candidate_id}`: Vínculo de candidatos
+- `POST /elections/{id}/open`: Abertura da votação
 - `POST /elections/{id}/close`: Encerramento da eleição
 - `POST /elections/{id}/tally`: Apuração dos votos
 

@@ -17,14 +17,11 @@ Repositório para o Trabalho de Conclusão de Curso (TCC) do curso de Tecnologia
 git clone <url-do-repositorio>
 cd TCC---2025
 
-# 2. Verifique o ambiente
-./check-environment.sh
-
-# 3. Configure e inicie (defina SECRET_KEY e os dados ADMIN_* no .env)
+# 2. Configure e inicie (defina SECRET_KEY e os dados ADMIN_* no .env)
 cp .env.example .env
 make docker-up
 
-# 4. Acesse http://localhost:3000 e entre com o ADMIN_EMAIL e ADMIN_PASSWORD
+# 3. Acesse http://localhost:3000 e entre com o ADMIN_EMAIL e ADMIN_PASSWORD
 ```
 
 **Documentação:** [DOCKER.md](DOCKER.md)
@@ -60,9 +57,10 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 - **Administrador:** definido no `.env` (`ADMIN_*`). Gerencia usuários candidatos e eleições.
 
 ### Ciclo de uma eleição
-1. **Aberta:** o administrador vincula os candidatos e a votação acontece. Após o primeiro voto, não é possível incluir novos candidatos.
-2. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
-3. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
+1. **Em configuração:** a eleição é criada neste estado. O administrador vincula e remove candidatos; ainda não é possível votar.
+2. **Aberta:** o administrador confirma a configuração com o botão "Abrir votação". A lista de candidatos é travada e a votação acontece.
+3. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
+4. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
 
 Detalhes das regras e rotas da API em [fast_backend/README.md](fast_backend/README.md).
 

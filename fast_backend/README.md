@@ -75,7 +75,7 @@ fast_backend/
 -- Usuários (eleitores, candidatos e administrador)
 usuarios (id, username, password, email, statusVotacao, is_candidate, is_admin, created_at, updated_at)
 
--- Eleições (status: open, closed ou tallied)
+-- Eleições (status: draft, open, closed ou tallied)
 eleicoes (id, title, status, created_at, updated_at)
 
 -- Associação Eleição-Candidato (fk_candidate referencia usuarios)
@@ -89,7 +89,7 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 - **CRUD de Eleições**: Criação, leitura, atualização e exclusão (somente administrador)
 - **Associação de Candidatos**: Vinculação de candidatos às eleições (somente administrador)
 - **Tally Criptografado**: Manutenção de contagem homomórfica
-- **Encerramento e Apuração**: O administrador encerra a votação e depois apura os votos
+- **Abertura, Encerramento e Apuração**: O administrador abre a votação, encerra e depois apura os votos
 
 #### Papéis de Usuário
 - **Eleitor**: Todo usuário cadastrado; pode votar
@@ -99,13 +99,15 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 #### Ciclo de Vida da Eleição
 | Status | Significado | Permitido |
 |--------|-------------|-----------|
-| `open` | Aberta | Votar; vincular candidatos até o primeiro voto |
+| `draft` | Em configuração | Vincular e remover candidatos; ainda não é possível votar |
+| `open` | Aberta | Votar; lista de candidatos travada |
 | `closed` | Encerrada | Nenhum voto novo; lista de candidatos travada; resultado sigiloso |
 | `tallied` | Apurada | Resultado público; eleição mantida como histórico (não pode ser excluída) |
 
 #### Regras
-- Após o primeiro voto, não é possível vincular novos candidatos à eleição
-- Candidato com votos não pode ser desvinculado da eleição
+- Toda eleição é criada em configuração (`draft`)
+- Candidatos só podem ser vinculados ou removidos enquanto a eleição está em configuração
+- Para abrir a votação, a eleição precisa ter pelo menos um candidato
 - Candidato vinculado a uma eleição não pode ser desmarcado como candidato
 - A apuração exige a eleição encerrada e ocorre uma única vez
 - Eleição apurada não pode ser excluída
@@ -141,7 +143,6 @@ votos (
 #### Segurança de Senhas
 - **Hash Argon2**: Algoritmo resistente a ataques de força bruta
 - **Salt Automático**: Proteção contra rainbow tables
-- **Validação de Força**: Critérios mínimos de segurança
 
 ## Configuração e Execução
 
@@ -222,9 +223,10 @@ Rotas marcadas com **(admin)** exigem um usuário administrador.
 - `GET /elections/{id}`: Eleição específica
 - `PUT /elections/{id}`: Atualização de eleição **(admin)**
 - `DELETE /elections/{id}`: Exclusão de eleição, exceto apuradas **(admin)**
-- `POST /elections/{id}/candidates/{candidate_id}`: Associar candidato, antes do primeiro voto **(admin)**
-- `DELETE /elections/{id}/candidates/{candidate_id}`: Desassociar candidato sem votos **(admin)**
+- `POST /elections/{id}/candidates/{candidate_id}`: Associar candidato, em configuração **(admin)**
+- `DELETE /elections/{id}/candidates/{candidate_id}`: Desassociar candidato, em configuração **(admin)**
 - `GET /elections/{id}/candidates`: Candidatos da eleição
+- `POST /elections/{id}/open`: Confirmar a configuração e abrir a votação **(admin)**
 - `POST /elections/{id}/close`: Encerrar a votação **(admin)**
 - `POST /elections/{id}/tally`: Apurar os votos e publicar o resultado **(admin)**
 
@@ -280,8 +282,8 @@ def add_vote_to_tally(self, encrypted_tally: str, encrypted_vote: str) -> str:
 ### Medidas de Segurança
 - **Autenticação Forte**: JWT com expiração
 - **Validação de Entrada**: Sanitização via Pydantic
-- **Prevenção de Ataques**: Rate limiting e validação de origem
-- **Auditoria**: Logs de todas as operações críticas
+- **Controle de Origem**: CORS restrito às origens do frontend
+- **Controle de Acesso**: Rotas de gerenciamento restritas ao administrador
 
 ## Testes e Validação
 
@@ -329,4 +331,3 @@ O sistema implementa múltiplas camadas de segurança:
 1. **Camada Criptográfica**: Proteção dos votos via FHE
 2. **Camada de Autenticação**: Controle de acesso via JWT e Argon2
 3. **Camada de Integridade**: Provas zero-knowledge para validação
-4. **Camada de Auditoria**: Logs criptográficos para rastreabilidade
