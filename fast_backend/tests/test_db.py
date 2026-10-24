@@ -35,6 +35,9 @@ async def test_create_user(session, mock_db_time):
         'password': 'test',
         'email': 'test@test.com',
         'statusVotacao': False,
+        'is_candidate': False,
+        'is_admin': False,
+        'deleted_at': None,
         'created_at': time,
         'updated_at': time,
     }

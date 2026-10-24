@@ -22,13 +22,9 @@
 			const response = await api.login(email, password);
 
 			if (response.access_token) {
-				// Get user info (simplified - in real app you'd decode JWT or make another request)
-				const user = {
-					id: 1,
-					username: email.split("@")[0],
-					email,
-					statusVotacao: false,
-				};
+				// Token salvo antes para que /users/me seja autenticado
+				localStorage.setItem("token", response.access_token);
+				const user = await api.getMe();
 				authActions.login(response.access_token, user);
 				goto("/election");
 			} else {

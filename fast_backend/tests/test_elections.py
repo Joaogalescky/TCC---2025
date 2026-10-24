@@ -1,15 +1,13 @@
 from http import HTTPStatus
+from unittest.mock import ANY
 
-import factory
-import pytest_asyncio
-
-from src.models import Election
 from src.schemas import ElectionPublic
 
 
-def test_create_election(client):
+def test_create_election(client, admin_token):
     response = client.post(
         '/elections',
+        headers={'Authorization': f'Bearer {admin_token}'},
         json={'title': 'Test Election'},
     )
 
@@ -17,6 +15,8 @@ def test_create_election(client):
     assert response.json() == {
         'id': 1,
         'title': 'Test Election',
+        'status': 'draft',
+        'has_votes': False,
     }
 
 
@@ -50,9 +50,10 @@ def test_get_election_by_id_should_return_not_found(client):
     assert response.json() == {'detail': 'Election not found'}
 
 
-def test_update_election(client, election):
+def test_update_election(client, election, admin_token):
     response = client.put(
         f'/elections/{election.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
         json={'title': 'Updated Election'},
     )
 
@@ -60,12 +61,15 @@ def test_update_election(client, election):
     assert response.json() == {
         'id': election.id,
         'title': 'Updated Election',
+        'status': 'draft',
+        'has_votes': False,
     }
 
 
-def test_update_election_should_return_not_found(client):
+def test_update_election_should_return_not_found(client, admin_token):
     response = client.put(
         '/elections/-1',
+        headers={'Authorization': f'Bearer {admin_token}'},
         json={'title': 'Updated Election'},
     )
 
@@ -73,31 +77,484 @@ def test_update_election_should_return_not_found(client):
     assert response.json() == {'detail': 'Election not found'}
 
 
-def test_delete_election(client, election):
-    response = client.delete(f'/elections/{election.id}')
+def test_delete_election(client, election, admin_token):
+    response = client.delete(
+        f'/elections/{election.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'Election deleted'}
 
 
-def test_delete_election_should_return_not_found(client):
-    response = client.delete('/elections/-1')
+def test_delete_election_should_return_not_found(client, admin_token):
+    response = client.delete(
+        '/elections/-1',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Election not found'}
 
 
-class ElectionFactory(factory.Factory):
-    class Meta:
-        model = Election
+def test_create_election_should_require_admin(client, token):
+    response = client.post(
+        '/elections',
+        headers={'Authorization': f'Bearer {token}'},
+        json={'title': 'Test Election'},
+    )
 
-    title = factory.Sequence(lambda n: f'Election {n}')
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json() == {'detail': 'Not enough permissions'}
 
 
-@pytest_asyncio.fixture
-async def election(session):
-    election = ElectionFactory()
-    session.add(election)
-    await session.commit()
-    await session.refresh(election)
-    return election
+def test_create_election_should_require_login(client):
+    response = client.post('/elections', json={'title': 'Test Election'})
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_add_candidate_to_election(client, election, candidate, admin_token):
+    response = client.post(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json() == {
+        'id': election.id,
+        'title': election.title,
+        'status': 'draft',
+        'has_votes': False,
+        'candidates': [
+            {'id': candidate.id, 'username': candidate.username, 'is_deleted': False}
+        ],
+    }
+
+
+def test_add_voter_to_election_should_return_not_found(
+    client, election, user, admin_token
+):
+    response = client.post(
+        f'/elections/{election.id}/candidates/{user.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Candidate not found'}
+
+
+def test_add_candidate_to_election_should_require_admin(
+    client, election, candidate, token
+):
+    response = client.post(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_remove_candidate_from_election(client, election, candidate, admin_token):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    response = client.delete(
+        f'/elections/{election.id}/candidates/{candidate.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['candidates'] == []
+
+
+def test_remove_candidate_not_in_election_should_return_not_found(
+    client, election, candidate, admin_token
+):
+    response = client.delete(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Candidate not found in this election'}
+
+
+def test_unmark_candidate_linked_to_election_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    response = client.patch(
+        f'/users/{candidate.id}/candidate',
+        headers=headers,
+        json={'is_candidate': False},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Candidate is linked to an election'}
+
+
+def _create_candidate(client, headers, username='second_candidate'):
+    """Cadastra um usuário pela API e o marca como candidato; devolve o id."""
+    user = client.post(
+        '/users',
+        json={
+            'username': username,
+            'email': f'{username}@test.com',
+            'password': 'testtest',
+            'statusVotacao': False,
+        },
+    ).json()
+    client.patch(
+        f'/users/{user["id"]}/candidate', headers=headers, json={'is_candidate': True}
+    )
+    return user['id']
+
+
+def _open_with_candidate(client, election, candidate, admin_token):
+    """
+    Vincula o candidato e um segundo candidato (mínimo para abrir) e abre a
+    votação; devolve os headers do admin.
+    """
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    second_id = _create_candidate(client, headers)
+    for candidate_id in (candidate.id, second_id):
+        client.post(
+            f'/elections/{election.id}/candidates/{candidate_id}', headers=headers
+        )
+    client.post(f'/elections/{election.id}/open', headers=headers)
+    return headers
+
+
+def _link_and_vote(client, election, candidate, admin_token):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(
+        f'/vote/election/{election.id}',
+        headers=headers,
+        json={'candidate_id': candidate.id},
+    )
+    return headers
+
+
+def test_candidate_and_voter_can_vote(client, election, candidate, user, admin_token):
+    """Candidato e eleitor possuem voto; o candidato pode votar em si mesmo."""
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+
+    voters = (candidate, user)
+    for voter in voters:
+        token = client.post(
+            '/auth/token',
+            data={'username': voter.email, 'password': voter.clean_password},
+        ).json()['access_token']
+        response = client.post(
+            f'/vote/election/{election.id}',
+            headers={'Authorization': f'Bearer {token}'},
+            json={'candidate_id': candidate.id},
+        )
+        assert response.status_code == HTTPStatus.CREATED
+
+    client.post(f'/elections/{election.id}/close', headers=headers)
+    client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    response = client.get(f'/vote/results/{election.id}')
+    assert {
+        'id': candidate.id,
+        'username': candidate.username,
+        'is_deleted': False,
+        'votes': len(voters),
+    } in response.json()['candidates']
+    assert response.json()['total_votes'] == len(voters)
+
+
+def test_open_election(client, election, candidate, admin_token):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    second_id = _create_candidate(client, headers)
+    for candidate_id in (candidate.id, second_id):
+        client.post(
+            f'/elections/{election.id}/candidates/{candidate_id}', headers=headers
+        )
+
+    response = client.post(f'/elections/{election.id}/open', headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {
+        'id': election.id,
+        'title': election.title,
+        'status': 'open',
+        'has_votes': False,
+    }
+
+
+def test_open_election_without_candidates_should_return_conflict(
+    client, election, admin_token
+):
+    response = client.post(
+        f'/elections/{election.id}/open',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election needs at least two candidates'}
+
+
+def test_open_election_with_one_candidate_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    response = client.post(f'/elections/{election.id}/open', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election needs at least two candidates'}
+    assert client.get(f'/elections/{election.id}').json()['status'] == 'draft'
+
+
+def test_open_election_should_require_admin(client, election, token):
+    response = client.post(
+        f'/elections/{election.id}/open',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_open_election_twice_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+
+    response = client.post(f'/elections/{election.id}/open', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not in configuration'}
+
+
+def test_vote_in_draft_election_should_return_conflict(
+    client, election, candidate, token, admin_token
+):
+    client.post(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    response = client.post(
+        f'/vote/election/{election.id}',
+        headers={'Authorization': f'Bearer {token}'},
+        json={'candidate_id': candidate.id},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not open for voting'}
+
+
+def test_add_candidate_after_open_should_return_conflict(
+    client, election, candidate, user, admin_token
+):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.patch(
+        f'/users/{user.id}/candidate', headers=headers, json={'is_candidate': True}
+    )
+
+    response = client.post(
+        f'/elections/{election.id}/candidates/{user.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not in configuration'}
+
+
+def test_remove_candidate_after_open_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+
+    response = client.delete(
+        f'/elections/{election.id}/candidates/{candidate.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not in configuration'}
+
+
+def test_close_election(client, election, candidate, admin_token):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+
+    response = client.post(f'/elections/{election.id}/close', headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {
+        'id': election.id,
+        'title': election.title,
+        'status': 'closed',
+        'has_votes': False,
+    }
+
+
+def test_close_draft_election_should_return_conflict(client, election, admin_token):
+    response = client.post(
+        f'/elections/{election.id}/close',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not open'}
+
+
+def test_close_election_should_require_admin(client, election, token):
+    response = client.post(
+        f'/elections/{election.id}/close',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_close_election_twice_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.post(f'/elections/{election.id}/close', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not open'}
+
+
+def test_vote_in_closed_election_should_return_conflict(
+    client, election, candidate, token, admin_token
+):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.post(
+        f'/vote/election/{election.id}',
+        headers={'Authorization': f'Bearer {token}'},
+        json={'candidate_id': candidate.id},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election is not open for voting'}
+
+
+def test_tally_election(client, election, candidate, admin_token):
+    headers = _link_and_vote(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {
+        'election_id': election.id,
+        'candidates': [
+            {
+                'id': candidate.id,
+                'username': candidate.username,
+                'is_deleted': False,
+                'votes': 1,
+            },
+            {
+                'id': ANY,
+                'username': 'second_candidate',
+                'is_deleted': False,
+                'votes': 0,
+            },
+        ],
+        'total_votes': 1,
+    }
+    assert client.get(f'/elections/{election.id}').json()['status'] == 'tallied'
+
+
+def test_tally_draft_or_open_election_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    for next_step in ('open', None):
+        response = client.post(f'/elections/{election.id}/tally', headers=headers)
+        assert response.status_code == HTTPStatus.CONFLICT
+        assert response.json() == {'detail': 'Election must be closed before tallying'}
+        if next_step:
+            client.post(f'/elections/{election.id}/{next_step}', headers=headers)
+
+
+def test_tally_twice_should_return_conflict(client, election, candidate, admin_token):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+    client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    response = client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Election already tallied'}
+
+
+def test_tally_should_require_admin(client, election, candidate, token, admin_token):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.post(
+        f'/elections/{election.id}/tally',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_tally_election_without_votes(client, election, candidate, admin_token):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['total_votes'] == 0
+
+
+def test_results_before_tally_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = _link_and_vote(client, election, candidate, admin_token)
+
+    for _ in ('open', 'closed'):
+        response = client.get(f'/vote/results/{election.id}')
+        assert response.status_code == HTTPStatus.CONFLICT
+        assert response.json() == {'detail': 'Election has not been tallied yet'}
+        client.post(f'/elections/{election.id}/close', headers=headers)
+
+
+def test_results_after_tally_are_public(client, election, candidate, admin_token):
+    headers = _link_and_vote(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+    client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    response = client.get(f'/vote/results/{election.id}')
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['total_votes'] == 1
+
+
+def test_delete_tallied_election_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+    client.post(f'/elections/{election.id}/tally', headers=headers)
+
+    response = client.delete(f'/elections/{election.id}', headers=headers)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Tallied elections cannot be deleted'}
+    assert client.get(f'/elections/{election.id}').json()['status'] == 'tallied'
+
+
+def test_delete_closed_election_is_allowed(client, election, candidate, admin_token):
+    headers = _open_with_candidate(client, election, candidate, admin_token)
+    client.post(f'/elections/{election.id}/close', headers=headers)
+
+    response = client.delete(f'/elections/{election.id}', headers=headers)
+
+    assert response.status_code == HTTPStatus.OK

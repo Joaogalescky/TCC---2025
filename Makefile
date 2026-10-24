@@ -1,8 +1,8 @@
 # Variáveis
-PYTHON_VERSION=3.13
-PYENV=3.13.5
+PYTHON_VERSION=3.12
+PYENV=3.12.3
 
-.PHONY: all setup poetry python deps dev test lint
+.PHONY: all setup poetry python deps dev test lint docker-build docker-up docker-down docker-restart docker-logs docker-ps docker-clean
 
 # Instalar tudo
 all: setup poetry python deps dev
@@ -36,3 +36,25 @@ deps:
 # Dependências de desenvolvimento
 dev:
 	poetry add --group dev pytest pytest-cov taskipy ruff pydantic[email]
+
+# Docker
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-restart:
+	docker compose restart
+
+docker-logs:
+	docker compose logs -f
+
+docker-ps:
+	docker compose ps
+
+docker-clean:
+	docker compose down -v --rmi local

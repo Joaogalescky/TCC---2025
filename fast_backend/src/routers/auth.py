@@ -38,6 +38,13 @@ async def login_for_access_token(form_data: OAuth2Form, session: Session):
             detail='Incorrect email or password',
         )
 
+    # Só informado após a senha correta, para não revelar quais contas existem
+    if user.is_deleted:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Account deleted',
+        )
+
     access_token = create_access_token(data={'sub': user.email})
 
     return {'access_token': access_token, 'token_type': 'bearer'}
