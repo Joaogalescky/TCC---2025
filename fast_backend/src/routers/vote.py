@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.crypto_service import crypto_service
 from src.database import get_session
 from src.models import (
-    Candidate,
     Election,
     Election_Candidate,
     Election_Tally,
@@ -189,9 +188,7 @@ async def get_election_results(election_id: int, session: Session):
         else:
             decrypted_votes = 0
 
-        candidate = await session.scalar(
-            select(Candidate).where(Candidate.id == ec.fk_candidate)
-        )
+        candidate = await session.scalar(select(User).where(User.id == ec.fk_candidate))
         total_votes += decrypted_votes
 
         candidates_results.append({

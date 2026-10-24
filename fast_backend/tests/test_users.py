@@ -20,6 +20,8 @@ def test_create_user(client):
         'username': 'test',
         'email': 'test@test.com',
         'statusVotacao': True,
+        'is_candidate': False,
+        'is_admin': False,
         'id': 1,
     }
 
@@ -116,6 +118,8 @@ def test_update_user(client, user, token):
         'username': 'test2',
         'email': 'test2@test.com',
         'statusVotacao': False,
+        'is_candidate': False,
+        'is_admin': False,
         'id': user.id,
     }
 
@@ -168,6 +172,8 @@ def test_parcial_update_user(client, user, token):
         'username': 'test4',
         'email': 'test4@test.com',
         'statusVotacao': True,
+        'is_candidate': False,
+        'is_admin': False,
         'id': user.id,
     }
 
@@ -255,3 +261,34 @@ def test_get_current_user_does_not_exist(client):
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert response.json() == {'detail': 'Could not validate credentials'}
+
+
+def test_get_me(client, user, token):
+    response = client.get('/users/me', headers={'Authorization': f'Bearer {token}'})
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == UserPublic.model_validate(user).model_dump()
+
+
+def test_get_me_should_require_login(client):
+    response = client.get('/users/me')
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_create_user_should_ignore_admin_and_candidate_fields(client):
+    response = client.post(
+        '/users',
+        json={
+            'username': 'test',
+            'password': 'test',
+            'email': 'test@test.com',
+            'statusVotacao': False,
+            'is_admin': True,
+            'is_candidate': True,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json()['is_admin'] is False
+    assert response.json()['is_candidate'] is False

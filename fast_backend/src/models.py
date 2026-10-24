@@ -17,23 +17,13 @@ class User:
     statusVotacao: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text('0')
     )
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, nullable=False, server_default=func.now()
+    # Definido pelo administrador; quem não é candidato é eleitor (ambos votam)
+    is_candidate: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text('0')
     )
-    updated_at: Mapped[datetime] = mapped_column(
-        init=False,
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text('0')
     )
-
-
-@table_registry.mapped_as_dataclass
-class Candidate:
-    __tablename__ = 'candidatos'
-
-    id: Mapped[int] = mapped_column(init=False, primary_key=True, nullable=False)
-    username: Mapped[str] = mapped_column(nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(
         init=False, nullable=False, server_default=func.now()
     )
@@ -62,13 +52,13 @@ class Election:
 
 
 @table_registry.mapped_as_dataclass
-# Tabela de relação de Candidato x Eleição
+# Tabela de relação de Candidato (usuário com is_candidate) x Eleição
 class Election_Candidate:
     __tablename__ = 'eleicao_candidato'
 
     id: Mapped[int] = mapped_column(init=False, primary_key=True, nullable=False)
     fk_election: Mapped[int] = mapped_column(ForeignKey('eleicoes.id'))
-    fk_candidate: Mapped[int] = mapped_column(ForeignKey('candidatos.id'))
+    fk_candidate: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
 
 
 @table_registry.mapped_as_dataclass

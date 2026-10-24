@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).parent.parent
@@ -17,3 +18,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     PLAINTEXT_MODULUS: int
     MULTIPLICATIVE_DEPTH: int
+
+    # Administrador criado na inicialização (opcional)
+    ADMIN_USERNAME: str | None = None
+    ADMIN_EMAIL: EmailStr | None = None
+    ADMIN_PASSWORD: str | None = None

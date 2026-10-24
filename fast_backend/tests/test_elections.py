@@ -7,9 +7,10 @@ from src.models import Election
 from src.schemas import ElectionPublic
 
 
-def test_create_election(client):
+def test_create_election(client, admin_token):
     response = client.post(
         '/elections',
+        headers={'Authorization': f'Bearer {admin_token}'},
         json={'title': 'Test Election'},
     )
 
@@ -50,9 +51,10 @@ def test_get_election_by_id_should_return_not_found(client):
     assert response.json() == {'detail': 'Election not found'}
 
 
-def test_update_election(client, election):
+def test_update_election(client, election, admin_token):
     response = client.put(
         f'/elections/{election.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
         json={'title': 'Updated Election'},
     )
 
@@ -63,9 +65,10 @@ def test_update_election(client, election):
     }
 
 
-def test_update_election_should_return_not_found(client):
+def test_update_election_should_return_not_found(client, admin_token):
     response = client.put(
         '/elections/-1',
+        headers={'Authorization': f'Bearer {admin_token}'},
         json={'title': 'Updated Election'},
     )
 
@@ -73,18 +76,162 @@ def test_update_election_should_return_not_found(client):
     assert response.json() == {'detail': 'Election not found'}
 
 
-def test_delete_election(client, election):
-    response = client.delete(f'/elections/{election.id}')
+def test_delete_election(client, election, admin_token):
+    response = client.delete(
+        f'/elections/{election.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'Election deleted'}
 
 
-def test_delete_election_should_return_not_found(client):
-    response = client.delete('/elections/-1')
+def test_delete_election_should_return_not_found(client, admin_token):
+    response = client.delete(
+        '/elections/-1',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Election not found'}
+
+
+def test_create_election_should_require_admin(client, token):
+    response = client.post(
+        '/elections',
+        headers={'Authorization': f'Bearer {token}'},
+        json={'title': 'Test Election'},
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json() == {'detail': 'Not enough permissions'}
+
+
+def test_create_election_should_require_login(client):
+    response = client.post('/elections', json={'title': 'Test Election'})
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_add_candidate_to_election(client, election, candidate, admin_token):
+    response = client.post(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json() == {
+        'id': election.id,
+        'title': election.title,
+        'candidates': [{'id': candidate.id, 'username': candidate.username}],
+    }
+
+
+def test_add_voter_to_election_should_return_not_found(
+    client, election, user, admin_token
+):
+    response = client.post(
+        f'/elections/{election.id}/candidates/{user.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Candidate not found'}
+
+
+def test_add_candidate_to_election_should_require_admin(
+    client, election, candidate, token
+):
+    response = client.post(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_remove_candidate_from_election(client, election, candidate, admin_token):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    response = client.delete(
+        f'/elections/{election.id}/candidates/{candidate.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['candidates'] == []
+
+
+def test_remove_candidate_not_in_election_should_return_not_found(
+    client, election, candidate, admin_token
+):
+    response = client.delete(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Candidate not found in this election'}
+
+
+def test_unmark_candidate_linked_to_election_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+
+    response = client.patch(
+        f'/users/{candidate.id}/candidate',
+        headers=headers,
+        json={'is_candidate': False},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Candidate is linked to an election'}
+
+
+def test_candidate_and_voter_can_vote(client, election, candidate, user, admin_token):
+    """Candidato e eleitor possuem voto; o candidato pode votar em si mesmo."""
+    client.post(
+        f'/elections/{election.id}/candidates/{candidate.id}',
+        headers={'Authorization': f'Bearer {admin_token}'},
+    )
+
+    for voter in (candidate, user):
+        token = client.post(
+            '/auth/token',
+            data={'username': voter.email, 'password': voter.clean_password},
+        ).json()['access_token']
+        response = client.post(
+            f'/vote/election/{election.id}',
+            headers={'Authorization': f'Bearer {token}'},
+            json={'candidate_id': candidate.id},
+        )
+        assert response.status_code == HTTPStatus.CREATED
+
+    response = client.get(f'/vote/results/{election.id}')
+    assert response.json()['candidates'] == [
+        {'id': candidate.id, 'username': candidate.username, 'votes': 2}
+    ]
+
+
+def test_remove_candidate_with_votes_should_return_conflict(
+    client, election, candidate, admin_token
+):
+    headers = {'Authorization': f'Bearer {admin_token}'}
+    client.post(f'/elections/{election.id}/candidates/{candidate.id}', headers=headers)
+    client.post(
+        f'/vote/election/{election.id}',
+        headers=headers,
+        json={'candidate_id': candidate.id},
+    )
+
+    response = client.delete(
+        f'/elections/{election.id}/candidates/{candidate.id}', headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Candidate already has votes in this election'}
 
 
 class ElectionFactory(factory.Factory):

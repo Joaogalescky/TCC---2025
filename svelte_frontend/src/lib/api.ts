@@ -43,9 +43,30 @@ export const api = {
 			body: JSON.stringify({ ...data, statusVotacao: false })
 		}),
 
+	getMe: () => request('/users/me'),
+
 	// Elections
 	getElections: () => request('/elections?limit=100'),
 	getElectionCandidates: (id: number) => request(`/elections/${id}/candidates`),
+
+	// Administração
+	getUsers: () => request('/users?limit=100'),
+	getCandidates: () => request('/candidates?limit=100'),
+	setCandidate: (userId: number, isCandidate: boolean) =>
+		request(`/users/${userId}/candidate`, {
+			method: 'PATCH',
+			body: JSON.stringify({ is_candidate: isCandidate })
+		}),
+	createElection: (title: string) =>
+		request('/elections', {
+			method: 'POST',
+			body: JSON.stringify({ title })
+		}),
+	deleteElection: (id: number) => request(`/elections/${id}`, { method: 'DELETE' }),
+	addCandidateToElection: (electionId: number, candidateId: number) =>
+		request(`/elections/${electionId}/candidates/${candidateId}`, { method: 'POST' }),
+	removeCandidateFromElection: (electionId: number, candidateId: number) =>
+		request(`/elections/${electionId}/candidates/${candidateId}`, { method: 'DELETE' }),
 	
 	// Voting
 	vote: (electionId: number, candidateId: number) =>

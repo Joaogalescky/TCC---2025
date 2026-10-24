@@ -114,9 +114,23 @@
 					<h1 class="text-xl font-semibold">Sistema de Eleições</h1>
 				</div>
 				<div class="flex items-center space-x-4">
+					{#if $auth.user?.is_admin}
+						<a
+							href="/admin"
+							class="text-blue-600 hover:text-blue-500 font-bold"
+						>
+							Administração
+						</a>
+					{/if}
 					<span class="text-gray-700"
-						>Olá, {$auth.user?.username}</span
-					>
+						>Olá, {$auth.user?.username}
+						{#if $auth.user?.is_candidate}
+							<span
+								class="ml-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
+								>Candidato</span
+							>
+						{/if}
+					</span>
 					<button
 						on:click={logout}
 						class="text-gray-500 hover:text-gray-700 font-bold"

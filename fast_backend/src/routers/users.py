@@ -7,13 +7,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
-from src.models import User
-from src.schemas import FilterPage, Message, UserList, UserPublic, UserSchema
-from src.security import get_current_user, get_password_hash
+from src.models import Election_Candidate, User
+from src.routers.events import notify_election_change
+from src.schemas import (
+    CandidateStatusSchema,
+    FilterPage,
+    Message,
+    UserList,
+    UserPublic,
+    UserSchema,
+)
+from src.security import get_current_admin, get_current_user, get_password_hash
 
 router = APIRouter(prefix='/users', tags=['users'])
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentAdmin = Annotated[User, Depends(get_current_admin)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
@@ -58,11 +67,47 @@ async def get_users(session: Session, filter_users: Annotated[FilterPage, Query(
     return {'users': users}
 
 
+@router.get('/me', status_code=HTTPStatus.OK, response_model=UserPublic)
+async def get_me(current_user: CurrentUser):
+    return current_user
+
+
 @router.get('/{user_id}', status_code=HTTPStatus.OK, response_model=UserPublic)
 async def get_user_by_id(user_id: int, session: Session):
     db_user = await session.scalar(select(User).where(User.id == user_id))
     if not db_user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='User not found')
+    return db_user
+
+
+@router.patch(
+    '/{user_id}/candidate', status_code=HTTPStatus.OK, response_model=UserPublic
+)
+async def set_candidate_status(
+    user_id: int,
+    status: CandidateStatusSchema,
+    session: Session,
+    admin: CurrentAdmin,
+):
+    db_user = await session.scalar(select(User).where(User.id == user_id))
+    if not db_user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='User not found')
+
+    if not status.is_candidate:
+        linked = await session.scalar(
+            select(Election_Candidate).where(Election_Candidate.fk_candidate == user_id)
+        )
+        if linked:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Candidate is linked to an election',
+            )
+
+    db_user.is_candidate = status.is_candidate
+    await session.commit()
+    await session.refresh(db_user)
+    await notify_election_change()
+
     return db_user
 
 

@@ -17,11 +17,12 @@ from src.security import get_password_hash
 
 @pytest.fixture
 def client(session):
-    def get_session_override():
-        return session
+    async def get_session_override():
+        yield session
 
+    # Override antes de iniciar o app: o lifespan (criação do admin) usa a mesma sessão
+    app.dependency_overrides[get_session] = get_session_override
     with TestClient(app) as client:
-        app.dependency_overrides[get_session] = get_session_override
         yield client
 
     app.dependency_overrides.clear()
@@ -117,6 +118,46 @@ def token(client, user):
         },
     )
     return response.json()['access_token']
+
+
+@pytest_asyncio.fixture
+async def admin(session):
+    password = 'testtest'
+    user = UserFactory(password=get_password_hash(password), is_admin=True)
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    user.clean_password = password
+
+    return user
+
+
+@pytest.fixture
+def admin_token(client, admin):
+    response = client.post(
+        '/auth/token',
+        data={
+            'username': admin.email,
+            'password': admin.clean_password,
+        },
+    )
+    return response.json()['access_token']
+
+
+@pytest_asyncio.fixture
+async def candidate(session):
+    password = 'testtest'
+    user = UserFactory(password=get_password_hash(password), is_candidate=True)
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    user.clean_password = password
+
+    return user
 
 
 class UserFactory(factory.Factory):

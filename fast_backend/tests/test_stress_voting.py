@@ -6,7 +6,7 @@ import pytest
 import pytest_asyncio
 
 from src.crypto_service import crypto_service
-from src.models import Candidate, Election, Election_Candidate, User
+from src.models import Election, Election_Candidate, User
 
 
 @pytest_asyncio.fixture
@@ -267,9 +267,12 @@ class StressElectionFactory(factory.Factory):
 
 class StressCandidateFactory(factory.Factory):
     class Meta:
-        model = Candidate
+        model = User
 
     username = factory.Sequence(lambda n: f'candidate_{n}')
+    email = factory.LazyAttribute(lambda obj: f'{obj.username}@stress.com')
+    password = 'stress_password'
+    is_candidate = True
 
 
 class StressUserFactory(factory.Factory):

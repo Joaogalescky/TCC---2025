@@ -1,11 +1,13 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-interface User {
+export interface User {
 	id: number;
 	username: string;
 	email: string;
 	statusVotacao: boolean;
+	is_candidate: boolean;
+	is_admin: boolean;
 }
 
 interface AuthState {

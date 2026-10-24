@@ -30,7 +30,8 @@
 			const loginResponse = await api.login(email, password);
 
 			if (loginResponse.access_token) {
-				const user = { id: 1, username, email, statusVotacao: false };
+				localStorage.setItem("token", loginResponse.access_token);
+				const user = await api.getMe();
 				authActions.login(loginResponse.access_token, user);
 				goto("/election");
 			}

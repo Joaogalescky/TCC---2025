@@ -19,6 +19,8 @@ class UserPublic(BaseModel):
     username: str
     email: EmailStr
     statusVotacao: bool
+    is_candidate: bool
+    is_admin: bool
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -26,8 +28,8 @@ class UserList(BaseModel):
     users: list[UserPublic]
 
 
-class CandidateSchema(BaseModel):
-    username: str
+class CandidateStatusSchema(BaseModel):
+    is_candidate: bool
 
 
 class CandidatePublic(BaseModel):
