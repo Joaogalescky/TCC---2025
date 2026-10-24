@@ -12,7 +12,7 @@
 git clone <url-do-repositorio>
 cd TCC---2025
 
-# 2. Configurar variáveis (troque o SECRET_KEY no .env)
+# 2. Configurar variáveis (troque SECRET_KEY e ADMIN_PASSWORD no .env)
 cp .env.example .env
 
 # 3. Iniciar containers
@@ -87,6 +87,11 @@ SECRET_KEY=troque-por-uma-chave-secreta
 PLAINTEXT_MODULUS=65537
 MULTIPLICATIVE_DEPTH=2
 
+# Administrador (criado ao iniciar o backend, se ainda não existir)
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@admin.com
+ADMIN_PASSWORD=troque-esta-senha
+
 # Frontend
 ORIGIN=http://localhost:3000
 PUBLIC_API_URL=http://localhost:8000
@@ -118,6 +123,9 @@ O pacote `openfhe` do PyPI é compilado para Ubuntu 24.04 / Python 3.12, apesar 
 
 ### Erro `Defina SECRET_KEY no arquivo .env`
 O arquivo `.env` não existe ou não define `SECRET_KEY`. Execute `cp .env.example .env` e defina uma chave.
+
+### Erro `Defina ADMIN_EMAIL no arquivo .env`
+O `.env` não define o e-mail do administrador. Preencha `ADMIN_USERNAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD`. O e-mail precisa ser válido: domínios reservados, como `.local`, são recusados.
 
 ## Desenvolvimento
 

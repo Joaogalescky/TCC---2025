@@ -37,11 +37,12 @@ fast_backend/
 │   ├── security.py            # Autenticação e autorização
 │   ├── settings.py            # Configurações da aplicação
 │   ├── crypto_service.py      # Serviço de criptografia homomórfica
+│   ├── admin.py               # Criação do administrador na inicialização
 │   ├── app.py                 # Aplicação FastAPI principal
 │   └── routers/               # Módulos de rotas da API
 │       ├── auth.py            # Endpoints de autenticação
 │       ├── users.py           # Gerenciamento de usuários
-│       ├── candidates.py      # Gerenciamento de candidatos
+│       ├── candidates.py      # Consulta de candidatos
 │       ├── elections.py       # Gerenciamento de eleições
 │       ├── vote.py            # Sistema de votação
 │       └── events.py          # Server-Sent Events
@@ -71,13 +72,13 @@ fast_backend/
 
 #### Estrutura de Dados
 ```sql
--- Eleições
-eleicoes (id, title, created_at, updated_at)
+-- Usuários (eleitores, candidatos e administrador)
+usuarios (id, username, password, email, statusVotacao, is_candidate, is_admin, created_at, updated_at)
 
--- Candidatos
-candidatos (id, username, created_at, updated_at)
+-- Eleições (status: open, closed ou tallied)
+eleicoes (id, title, status, created_at, updated_at)
 
--- Associação Eleição-Candidato
+-- Associação Eleição-Candidato (fk_candidate referencia usuarios)
 eleicao_candidato (id, fk_election, fk_candidate)
 
 -- Registro Criptografado da Eleição
@@ -85,14 +86,34 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 ```
 
 #### Funcionalidades
-- **CRUD de Eleições**: Criação, leitura, atualização e exclusão
-- **Associação de Candidatos**: Vinculação dinâmica de candidatos às eleições
+- **CRUD de Eleições**: Criação, leitura, atualização e exclusão (somente administrador)
+- **Associação de Candidatos**: Vinculação de candidatos às eleições (somente administrador)
 - **Tally Criptografado**: Manutenção de contagem homomórfica
+- **Encerramento e Apuração**: O administrador encerra a votação e depois apura os votos
+
+#### Papéis de Usuário
+- **Eleitor**: Todo usuário cadastrado; pode votar
+- **Candidato**: Usuário marcado pelo administrador (`is_candidate`); também vota e pode ser vinculado a eleições
+- **Administrador**: Criado na inicialização a partir das variáveis `ADMIN_*` (`is_admin`); gerencia eleições e candidatos
+
+#### Ciclo de Vida da Eleição
+| Status | Significado | Permitido |
+|--------|-------------|-----------|
+| `open` | Aberta | Votar; vincular candidatos até o primeiro voto |
+| `closed` | Encerrada | Nenhum voto novo; lista de candidatos travada; resultado sigiloso |
+| `tallied` | Apurada | Resultado público; eleição mantida como histórico (não pode ser excluída) |
+
+#### Regras
+- Após o primeiro voto, não é possível vincular novos candidatos à eleição
+- Candidato com votos não pode ser desvinculado da eleição
+- Candidato vinculado a uma eleição não pode ser desmarcado como candidato
+- A apuração exige a eleição encerrada e ocorre uma única vez
+- Eleição apurada não pode ser excluída
 
 ### 3. Sistema de Votação
 
 #### Processo de Votação
-1. **Validação de Elegibilidade**: Verificação de usuário autenticado
+1. **Validação de Elegibilidade**: Verificação de usuário autenticado e eleição aberta
 2. **Prevenção de Voto Duplo**: Controle de unicidade por eleição
 3. **Criptografia Homomórfica**: Transformação do voto em ciphertext
 4. **Geração de Prova ZK**: Criação de prova de validade
@@ -143,6 +164,11 @@ ALGORITHM='HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 PLAINTEXT_MODULUS=65537
 MULTIPLICATIVE_DEPTH=2
+
+# Administrador criado ao iniciar a API, se ainda não existir
+ADMIN_USERNAME='admin'
+ADMIN_EMAIL='admin@admin.com'
+ADMIN_PASSWORD='troque-esta-senha'
 ```
 
 ### Execução de Migrações
@@ -174,33 +200,37 @@ poetry run pytest tests/test_stress_voting.py -v
 - `POST /auth/token`: Obtenção de token JWT
 - `POST /auth/refresh_token`: Renovação de token
 
+Rotas marcadas com **(admin)** exigem um usuário administrador.
+
 ### Usuários
-- `POST /users`: Cadastro de usuário
+- `POST /users`: Cadastro de usuário (sempre como eleitor)
 - `GET /users`: Listagem de usuários
+- `GET /users/me`: Usuário autenticado
 - `GET /users/{id}`: Usuário específico
 - `PUT /users/{id}`: Atualização completa
 - `PATCH /users/{id}`: Atualização parcial
+- `PATCH /users/{id}/candidate`: Marcar ou desmarcar como candidato **(admin)**
 - `DELETE /users/{id}`: Exclusão de usuário
 
 ### Candidatos
-- `POST /candidates`: Cadastro de candidato
-- `GET /candidates`: Listagem de candidatos
+- `GET /candidates`: Listagem de usuários marcados como candidatos
 - `GET /candidates/{id}`: Candidato específico
-- `PUT /candidates/{id}`: Atualização de candidato
-- `DELETE /candidates/{id}`: Exclusão de candidato
 
 ### Eleições
-- `POST /elections`: Criação de eleição
+- `POST /elections`: Criação de eleição **(admin)**
 - `GET /elections`: Listagem de eleições
 - `GET /elections/{id}`: Eleição específica
-- `PUT /elections/{id}`: Atualização de eleição
-- `DELETE /elections/{id}`: Exclusão de eleição
-- `POST /elections/{id}/candidates/{candidate_id}`: Associar candidato
+- `PUT /elections/{id}`: Atualização de eleição **(admin)**
+- `DELETE /elections/{id}`: Exclusão de eleição, exceto apuradas **(admin)**
+- `POST /elections/{id}/candidates/{candidate_id}`: Associar candidato, antes do primeiro voto **(admin)**
+- `DELETE /elections/{id}/candidates/{candidate_id}`: Desassociar candidato sem votos **(admin)**
 - `GET /elections/{id}/candidates`: Candidatos da eleição
+- `POST /elections/{id}/close`: Encerrar a votação **(admin)**
+- `POST /elections/{id}/tally`: Apurar os votos e publicar o resultado **(admin)**
 
 ### Votação
-- `POST /vote/election/{id}`: Submissão de voto criptografado
-- `GET /vote/results/{id}`: Resultados descriptografados
+- `POST /vote/election/{id}`: Submissão de voto criptografado (eleição aberta)
+- `GET /vote/results/{id}`: Resultados descriptografados (após a apuração)
 
 ### Eventos
 - `GET /events/elections`: Server-Sent Events para atualizações

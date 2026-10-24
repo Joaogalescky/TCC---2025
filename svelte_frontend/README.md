@@ -29,12 +29,15 @@ svelte_frontend/
 │   ├── lib/
 │   │   ├── api.ts              # Cliente HTTP para comunicação com backend
 │   │   ├── components/         # Componentes reutilizáveis
-│   │   │   └── Toast.svelte    # Componente de notificações
+│   │   │   ├── Toast.svelte    # Componente de notificações
+│   │   │   ├── ElectionStatusBadge.svelte  # Selo de status (Aberta, Encerrada, Apurada)
+│   │   │   └── ElectionResults.svelte      # Resultado da apuração
 │   │   └── stores/             # Gerenciamento de estado global
 │   │       └── auth.ts         # Store de autenticação
 │   ├── routes/                 # Páginas da aplicação
 │   │   ├── +layout.svelte      # Layout base da aplicação
 │   │   ├── +page.svelte        # Página inicial (redirecionamento)
+│   │   ├── admin/              # Administração (somente administrador)
 │   │   ├── election/           # Módulo de eleições
 │   │   ├── login/              # Módulo de autenticação
 │   │   └── register/           # Módulo de cadastro
@@ -53,15 +56,23 @@ svelte_frontend/
 - **Gerenciamento de Sessão**: Persistência de estado de autenticação
 
 ### 2. Interface de Votação
-- **Listagem de Eleições**: Visualização de eleições disponíveis
+- **Listagem de Eleições**: Visualização de eleições disponíveis e do status de cada uma
 - **Seleção de Candidatos**: Interface para escolha de candidatos
-- **Processo de Votação**: Submissão segura de votos criptografados
+- **Processo de Votação**: Submissão segura de votos criptografados, apenas com a eleição aberta
+- **Resultado**: Exibido para todos após a apuração
 
-### 3. Atualizações em Tempo Real
+### 3. Administração
+Disponível em `/admin` e nos botões da tela de eleições, apenas para o administrador:
+- **Usuários**: Marcar ou desmarcar usuários como candidatos
+- **Eleições**: Criar eleições e vincular ou remover candidatos (até o primeiro voto)
+- **Encerrar eleição**: Impede novos votos
+- **Apurar votos**: Publica o resultado; eleições apuradas não podem ser excluídas
+
+### 4. Atualizações em Tempo Real
 - **Server-Sent Events (SSE)**: Recebimento de atualizações automáticas
 - **Sincronização de Estado**: Atualização dinâmica da interface
 
-### 4. Gerenciamento de Estado
+### 5. Gerenciamento de Estado
 - **Svelte Stores**: Gerenciamento reativo do estado da aplicação
 - **Persistência Local**: Armazenamento de tokens de autenticação
 
@@ -113,6 +124,7 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 ### Endpoints de Autenticação
 - `POST /auth/token`: Obtenção de token de acesso
 - `POST /users`: Registro de novos usuários
+- `GET /users/me`: Dados do usuário autenticado (papel de candidato e administrador)
 
 ### Endpoints de Eleições
 - `GET /elections`: Listagem de eleições disponíveis
@@ -120,7 +132,14 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 
 ### Endpoints de Votação
 - `POST /vote/election/{id}`: Submissão de voto criptografado
-- `GET /vote/results/{id}`: Consulta de resultados da eleição
+- `GET /vote/results/{id}`: Consulta de resultados da eleição apurada
+
+### Endpoints de Administração
+- `GET /users` e `PATCH /users/{id}/candidate`: Listagem de usuários e definição de candidatos
+- `POST /elections` e `DELETE /elections/{id}`: Criação e exclusão de eleições
+- `POST` e `DELETE /elections/{id}/candidates/{candidate_id}`: Vínculo de candidatos
+- `POST /elections/{id}/close`: Encerramento da eleição
+- `POST /elections/{id}/tally`: Apuração dos votos
 
 ## Segurança e Privacidade
 

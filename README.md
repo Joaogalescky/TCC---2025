@@ -20,11 +20,11 @@ cd TCC---2025
 # 2. Verifique o ambiente
 ./check-environment.sh
 
-# 3. Configure e inicie
+# 3. Configure e inicie (defina SECRET_KEY e os dados ADMIN_* no .env)
 cp .env.example .env
 make docker-up
 
-# 4. Acesse http://localhost:3000
+# 4. Acesse http://localhost:3000 e entre com o ADMIN_EMAIL e ADMIN_PASSWORD
 ```
 
 **Documentação:** [DOCKER.md](DOCKER.md)
@@ -49,6 +49,22 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 - Utilizar o esquema de criptografia BFV (Brakerski/Fan-Vercauteren);
 - Armazenar votos criptografados em banco de dados relacional;
 - Garantir segurança, confidencialidade, integridade e anonimato durante o processo de eleição.
+
+---
+
+## Funcionamento do Sistema
+
+### Papéis
+- **Eleitor:** todo usuário cadastrado. Pode votar.
+- **Candidato:** usuário marcado pelo administrador. Também vota e pode concorrer nas eleições em que for vinculado.
+- **Administrador:** definido no `.env` (`ADMIN_*`). Gerencia usuários candidatos e eleições.
+
+### Ciclo de uma eleição
+1. **Aberta:** o administrador vincula os candidatos e a votação acontece. Após o primeiro voto, não é possível incluir novos candidatos.
+2. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
+3. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
+
+Detalhes das regras e rotas da API em [fast_backend/README.md](fast_backend/README.md).
 
 ---
 
@@ -154,7 +170,7 @@ pip install poetry
 poetry install
 ```
 
-2. **Configure o banco de dados e variáveis de ambiente**
+2. **Configure o banco de dados e variáveis de ambiente** (veja [fast_backend/README.md](fast_backend/README.md))
 
 3. **Execute o servidor:**
 ```bash
