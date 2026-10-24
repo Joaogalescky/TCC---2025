@@ -62,6 +62,13 @@ Este trabalho tem como objetivo avaliar a viabilidade do uso da Criptografia Hom
 3. **Encerrada:** o administrador encerra a votação; nenhum voto novo é aceito e o resultado permanece sigiloso.
 4. **Apurada:** o administrador apura os votos (descriptografia da soma homomórfica). O resultado fica visível para todos e a eleição é mantida como histórico, sem possibilidade de exclusão.
 
+### Sigilo e conferência do voto
+- Cada voto é um vetor com 1 na posição do candidato, cifrado com BFV e gravado no banco **sem o eleitor, sem o candidato e sem horário**. Um registro separado guarda apenas quem já votou, para impedir voto duplo.
+- Os votos são agrupados em **lotes** (1.000 por padrão). Quando um lote fecha, ou quando a eleição é encerrada, seus votos viram um subtotal cifrado e são apagados.
+- Ao votar, o eleitor recebe um **comprovante** (o hash SHA-256 do voto cifrado). Com ele, confere na tela da eleição se o voto está pendente ou registrado num lote. O comprovante não revela em quem a pessoa votou.
+- Os lotes formam uma cadeia de hashes, e a apuração faz **dupla contagem**: o total somado voto a voto precisa bater com a soma dos subtotais dos lotes. Se algo não bater, o resultado não é publicado.
+- Nenhum conjunto parcial de votos com menos de 100 votos (nem o que sobra fora dele) pode ser decifrado.
+
 Uma eleição aberta ou encerrada que já recebeu votos não pode ser excluída: o administrador pode apenas **cancelá-la**. Ela fica como "Cancelada", não é apurada, e votos e candidatos permanecem como histórico. Sem votos, a eleição pode ser excluída definitivamente.
 
 ### Exclusão de contas

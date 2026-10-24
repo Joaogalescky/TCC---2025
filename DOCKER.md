@@ -92,6 +92,11 @@ ADMIN_USERNAME=admin
 ADMIN_EMAIL=admin@admin.com
 ADMIN_PASSWORD=troque-esta-senha
 
+# Lotes de votos e chaves do OpenFHE
+LOTE_TAMANHO=1000
+LOTE_MINIMO_DECIFRAR=100
+KEYS_DIR=/app/keys
+
 # Frontend
 ORIGIN=http://localhost:3000
 PUBLIC_API_URL=http://localhost:8000
@@ -127,17 +132,25 @@ O arquivo `.env` não existe ou não define `SECRET_KEY`. Execute `cp .env.examp
 ### Erro `Defina ADMIN_EMAIL no arquivo .env`
 O `.env` não define o e-mail do administrador. Preencha `ADMIN_USERNAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD`. O e-mail precisa ser válido: domínios reservados, como `.local`, são recusados.
 
+### Volume de chaves `eleicao_keys`
+O contexto e as chaves do OpenFHE ficam no volume nomeado `eleicao_keys`, montado em `/app/keys`. Eles são gerados na primeira inicialização e reaproveitados nas seguintes, o que permite apurar uma eleição mesmo depois de reiniciar o backend. A chave privada (`secret.key`) nunca vai para o Git nem para a imagem.
+
+**Banco e chaves andam juntos.** Com chaves novas, os votos já gravados não podem ser decifrados; com banco novo e chaves antigas, nada se perde, mas o ideal é recriar os dois juntos.
+
 ### Recomeçar com o banco de dados vazio
-O `docker-compose.yml` monta o arquivo `fast_backend/database.db` no container. Se o arquivo for apagado, o Docker cria uma **pasta** com esse nome e o backend não sobe. Para recomeçar, substitua o arquivo por um vazio:
+O `docker-compose.yml` monta o arquivo `fast_backend/database.db` no container. Se o arquivo for apagado, o Docker cria uma **pasta** com esse nome e o backend não sobe. Para recomeçar, substitua o arquivo por um vazio e recrie também o volume de chaves:
 
 ```bash
 docker compose down
+docker volume rm tcc---2025_eleicao_keys   # nome = <pasta do projeto>_eleicao_keys
 rm fast_backend/database.db
 touch fast_backend/database.db
 docker compose up -d
 ```
 
-Ao iniciar, o backend aplica as migrações no arquivo vazio e cria o administrador definido no `.env`. Todos os usuários, eleições e votos anteriores são perdidos.
+Ao iniciar, o backend aplica as migrações no arquivo vazio, gera chaves novas e cria o administrador definido no `.env`. Todos os usuários, eleições e votos anteriores são perdidos. Para ver o nome exato do volume: `docker volume ls | grep eleicao_keys`.
+
+**Atualização para votos persistentes (migração `e7a3c9f1b5d8`):** os votos antigos guardavam só um identificador de um cache em memória e não podem ser recuperados. Essa migração exige começar com o banco vazio.
 
 ## Desenvolvimento
 

@@ -57,6 +57,8 @@ svelte_frontend/
 - **Listagem de Eleições**: Visualização de eleições disponíveis e do status de cada uma
 - **Seleção de Candidatos**: Interface para escolha de candidatos
 - **Processo de Votação**: Submissão segura de votos criptografados, apenas com a eleição aberta (eleições em configuração aparecem sem a opção de votar)
+- **Comprovante**: Depois de votar, o eleitor vê o comprovante (hash do voto cifrado) com botão para copiar; ele não revela o candidato escolhido
+- **Conferência**: Na tela de cada eleição, um campo recebe o comprovante e mostra se o voto está pendente (lote aberto) ou registrado num lote
 - **Resultado**: Exibido para todos após a apuração
 
 ### 3. Administração
@@ -133,6 +135,8 @@ A aplicação frontend comunica-se com o backend FastAPI através de uma API RES
 ### Endpoints de Votação
 - `POST /vote/election/{id}`: Submissão de voto criptografado
 - `GET /vote/results/{id}`: Consulta de resultados da eleição apurada
+- `GET /vote/receipt/{election_id}/{receipt_hash}`: Conferência do comprovante
+- `GET /elections/{id}/audit`: Lotes e comprovantes da eleição (disponível em `api.getAudit`)
 
 ### Endpoints de Administração
 - `GET /users` e `PATCH /users/{id}/candidate`: Listagem de usuários e definição de candidatos

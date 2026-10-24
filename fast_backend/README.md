@@ -15,7 +15,7 @@ Este diretório implementa o núcleo do sistema de eleição eletrônico baseado
 ### Criptografia Homomórfica
 - **OpenFHE**: Biblioteca de criptografia homomórfica
 - **Esquema BFV**: Implementação do algoritmo Brakerski-Fan-Vercauteren
-- **Provas Zero-Knowledge**: Validação de integridade dos votos
+- **Provas Zero-Knowledge**: Validação do voto no momento da cifragem (simulada; ver Limitações)
 
 ### Segurança e Autenticação
 - **JWT (JSON Web Tokens)**: Autenticação stateless
@@ -36,7 +36,8 @@ fast_backend/
 │   ├── database.py            # Configuração de conexão com banco
 │   ├── security.py            # Autenticação e autorização
 │   ├── settings.py            # Configurações da aplicação
-│   ├── crypto_service.py      # Serviço de criptografia homomórfica
+│   ├── crypto_service.py      # Serviço de criptografia homomórfica e chaves persistentes
+│   ├── voting.py              # Voto, lotes, regra de decifragem e apuração
 │   ├── admin.py               # Criação do administrador na inicialização
 │   ├── app.py                 # Aplicação FastAPI principal
 │   └── routers/               # Módulos de rotas da API
@@ -47,6 +48,7 @@ fast_backend/
 │       ├── vote.py            # Sistema de votação
 │       └── events.py          # Server-Sent Events
 ├── migrations/                # Migrações de banco de dados
+├── keys/                      # Contexto e chaves do OpenFHE (gerado; fora do Git)
 ├── tests/                     # Testes automatizados
 ├── alembic.ini               # Configuração do Alembic
 ├── pyproject.toml            # Configurações do projeto Python
@@ -65,8 +67,9 @@ fast_backend/
 #### Operações Criptográficas
 - **Criptografia de Votos**: Transformação de votos em ciphertexts
 - **Soma Homomórfica**: Agregação de votos sem descriptografia
-- **Validação 1-Hot**: Garantia de voto único por eleição
-- **Provas Zero-Knowledge**: Verificação de integridade sem revelação
+- **Voto 1-Hot**: Vetor com 1 na posição do candidato e 0 nas demais, cifrado num único ciphertext
+- **Chaves Persistentes**: Contexto e chaves gerados uma vez e carregados ao iniciar
+- **Provas Zero-Knowledge**: Verificação simulada no momento do voto (não gravada)
 
 ### 2. Gerenciamento de Eleições
 
@@ -78,17 +81,33 @@ usuarios (id, username, password, email, statusVotacao, is_candidate, is_admin, 
 -- Eleições (status: draft, open, closed, tallied ou cancelled)
 eleicoes (id, title, status, created_at, updated_at)
 
--- Associação Eleição-Candidato (fk_candidate referencia usuarios)
-eleicao_candidato (id, fk_election, fk_candidate)
+-- Associação Eleição-Candidato (fk_candidate referencia usuarios;
+-- posicao = posição no vetor 1-hot, fixada ao abrir a eleição)
+eleicao_candidato (id, fk_election, fk_candidate, posicao)
 
--- Registro Criptografado da Eleição
-registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at)
+-- Total cifrado da eleição, criado ao abrir a votação
+registro_eleicao (id, fk_election, encrypted_tally, total_candidates, total_votos,
+                  lotes_fechados, hash_ultimo_lote, resultado_json)
+
+-- Quem já votou (impede voto duplo sem ligar a pessoa ao voto) — WITHOUT ROWID
+participacoes (fk_user, fk_election)
+
+-- Votos do lote aberto, apagados quando o lote fecha — WITHOUT ROWID
+votos (id UUID4, fk_election, encrypted_vote, receipt_hash)
+
+-- Subtotal cifrado de cada lote fechado
+subtotais_lote (id, fk_election, numero_lote, qtd_votos, encrypted_subtotal, hash_lote)
+
+-- Comprovantes dos lotes fechados — WITHOUT ROWID
+comprovantes (receipt_hash, fk_election, numero_lote)
 ```
+
+Nenhuma tabela ligada a votos guarda horário, ordem de chegada ou o eleitor. Em SQLite uma tabela comum tem um `rowid` na ordem de inserção; por isso `votos`, `participacoes` e `comprovantes` são `WITHOUT ROWID`, com chave primária não sequencial. O banco usa `PRAGMA secure_delete`, que sobrescreve com zeros os votos apagados ao fechar um lote.
 
 #### Funcionalidades
 - **CRUD de Eleições**: Criação, leitura, atualização e exclusão ou cancelamento (somente administrador)
 - **Associação de Candidatos**: Vinculação de candidatos às eleições (somente administrador)
-- **Tally Criptografado**: Manutenção de contagem homomórfica
+- **Total Cifrado**: Soma homomórfica incremental, voto a voto, mais subtotais por lote
 - **Abertura, Encerramento e Apuração**: O administrador abre a votação, encerra e depois apura os votos
 
 #### Papéis de Usuário
@@ -126,23 +145,31 @@ registro_eleicao (id, fk_election, encrypted_tally, total_candidates, updated_at
 ### 3. Sistema de Votação
 
 #### Processo de Votação
-1. **Validação de Elegibilidade**: Verificação de usuário autenticado e eleição aberta
-2. **Prevenção de Voto Duplo**: Controle de unicidade por eleição
-3. **Criptografia Homomórfica**: Transformação do voto em ciphertext
-4. **Geração de Prova ZK**: Criação de prova de validade
-5. **Agregação Homomórfica**: Soma ao tally da eleição
+Tudo numa única transação serializada (`asyncio.Lock` + `BEGIN IMMEDIATE` no SQLite), para que dois votos simultâneos não leiam o mesmo total. Em qualquer erro, nada é gravado.
+1. **Validação**: Usuário autenticado, eleição aberta e candidato da eleição
+2. **Prevenção de Voto Duplo**: Consulta a `participacoes` (409 se já votou)
+3. **Cifragem**: Vetor 1-hot com a posição do candidato, cifrado e serializado em bytes
+4. **Prova ZK**: Verificada no momento do voto e não gravada
+5. **Gravação**: `participacoes` e `votos` (bytes e comprovante), sem ligação entre os dois
+6. **Total**: Soma homomórfica ao `encrypted_tally` e `total_votos + 1`
+7. **Lote**: Se o lote aberto completou `LOTE_TAMANHO` votos, ele é fechado na mesma transação
+8. **Resposta**: `{"message": ..., "receipt": "<sha256>"}`; o comprovante não é registrado em log
 
-#### Estrutura de Voto
-```sql
-votos (
-    id,
-    fk_user,
-    fk_election_candidate,
-    encrypted_vote,      -- Ciphertext do voto
-    zk_proof,           -- Prova zero-knowledge
-    created_at
-)
-```
+#### Lotes e Comprovantes
+- **Comprovante**: SHA-256 do voto cifrado, entregue ao eleitor; não revela o candidato
+- **Fechamento de lote**: Os votos do lote são somados do zero num subtotal cifrado, os comprovantes vão para `comprovantes` (sempre lidos ordenados pelo próprio hash) e os votos individuais são apagados
+- **Cadeia de hashes**: `hash_lote = sha256(hash anterior | número | quantidade | comprovantes | sha256(subtotal))`, começando em `"0" * 64`
+- **Fechamento final**: Ao encerrar (ou cancelar) a eleição, o lote aberto é fechado mesmo com poucos votos; nenhum voto individual fica no banco
+
+#### Regra de Decifragem
+Uma única função (`voting.decrypt_lots`) decifra conjuntos de lotes. Um conjunto parcial só é decifrado se **ele e o seu complemento** tiverem pelo menos `LOTE_MINIMO_DECIFRAR` votos; isso impede o ataque por diferença (o total menos um conjunto quase completo revelaria os votos restantes). O conjunto com todos os lotes, sem votos fora deles, é o resultado final. Votos individuais nunca são decifrados, e não há rota pública para decifrar lotes.
+
+#### Apuração com Dupla Contagem
+1. **Caminho 1**: Decifra o total acumulado voto a voto
+2. **Caminho 2**: Soma os subtotais de todos os lotes e decifra
+3. **Verificações**: Os dois resultados iguais; soma dos votos = `total_votos` = participações = soma das quantidades dos lotes; cadeia de hashes íntegra
+4. **Resultado**: Gravado em `resultado_json` e publicado; `GET /vote/results/{id}` só lê esse resultado
+5. **Falha**: Responde 409 com a verificação que falhou e a eleição continua encerrada
 
 ### 4. Autenticação e Autorização
 
@@ -181,7 +208,16 @@ MULTIPLICATIVE_DEPTH=2
 ADMIN_USERNAME='admin'
 ADMIN_EMAIL='admin@admin.com'
 ADMIN_PASSWORD='troque-esta-senha'
+
+# Lotes de votos (LOTE_TAMANHO >= LOTE_MINIMO_DECIFRAR >= 1)
+LOTE_TAMANHO=1000
+LOTE_MINIMO_DECIFRAR=100
+
+# Pasta das chaves do OpenFHE; sem a variável, usa fast_backend/keys
+# KEYS_DIR='/caminho/para/keys'
 ```
+
+Na primeira inicialização o backend gera o contexto e as chaves em `KEYS_DIR` (`cryptocontext.bin`, `public.key`, `secret.key` com permissão 600 e `evalmult.key`); nas seguintes, carrega esses arquivos. Banco e chaves andam juntos: com chaves novas, os votos já gravados não podem ser decifrados.
 
 ### Execução de Migrações
 ```bash
@@ -244,8 +280,12 @@ Rotas marcadas com **(admin)** exigem um usuário administrador.
 - `POST /elections/{id}/tally`: Apurar os votos e publicar o resultado **(admin)**
 
 ### Votação
-- `POST /vote/election/{id}`: Submissão de voto criptografado (eleição aberta)
-- `GET /vote/results/{id}`: Resultados descriptografados (após a apuração)
+- `POST /vote/election/{id}`: Submissão de voto criptografado (eleição aberta); devolve o comprovante
+- `GET /vote/results/{id}`: Resultado gravado na apuração (nada é decifrado nesta rota)
+- `GET /vote/receipt/{election_id}/{receipt_hash}`: Situação do comprovante: `pending` (lote aberto), `registered` com o número do lote, ou 404
+
+### Auditoria
+- `GET /elections/{id}/audit`: Lotes (número, quantidade, hash) com os comprovantes ordenados e `chain_valid`; não expõe textos cifrados
 
 ### Eventos
 - `GET /events/elections`: Server-Sent Events para atualizações
@@ -277,19 +317,27 @@ def validate_1hot_vector(self, vote_vector: List[int]) -> bool:
 
 #### Soma Homomórfica
 ```python
-def add_vote_to_tally(self, encrypted_tally: str, encrypted_vote: str) -> str:
-    ct_tally = self.ciphertext_cache[encrypted_tally]
-    ct_vote = self.ciphertext_cache[encrypted_vote]
-    ct_result = self.cc.EvalAdd(ct_tally, ct_vote)
-    return self.manage_cache(self.generate_id(), ct_result)
+def add(self, ciphertext_a, ciphertext_b):
+    # Soma homomórfica: slot-a-slot dos vetores empacotados
+    return self.cc.EvalAdd(ciphertext_a, ciphertext_b)
 ```
+
+#### Persistência
+```python
+crypto_service.load_or_create_keys(settings.KEYS_DIR)   # no lifespan da aplicação
+encrypted_vote = crypto_service.serialize(ciphertext)  # bytes gravados no banco
+ciphertext = crypto_service.deserialize(encrypted_vote)
+```
+
+A API antiga, com cache em memória por UUID (`encrypt_vote`, `add_vote_to_tally`, `decrypt_tally`...), foi mantida na classe `LegacyCacheAPI` só para os scripts de medição em `manual_tests/`; as rotas não a usam.
 
 ## Segurança e Privacidade
 
 ### Propriedades Criptográficas
 - **Privacidade Semântica**: Votos individuais permanecem ocultos
 - **Homomorfismo Aditivo**: Contabilização sem descriptografia
-- **Verificabilidade**: Provas zero-knowledge de validade
+- **Verificabilidade**: Comprovante por eleitor e cadeia de hashes entre os lotes
+- **Dupla Contagem**: Total acumulado conferido com a soma dos subtotais dos lotes
 - **Integridade**: Proteção contra manipulação de votos
 
 ### Medidas de Segurança
@@ -297,6 +345,7 @@ def add_vote_to_tally(self, encrypted_tally: str, encrypted_vote: str) -> str:
 - **Validação de Entrada**: Sanitização via Pydantic
 - **Controle de Origem**: CORS restrito às origens do frontend
 - **Controle de Acesso**: Rotas de gerenciamento restritas ao administrador
+- **Logs**: As rotas `/vote/*` ficam fora do access log do uvicorn, para não registrar IP e horário de cada voto nem o comprovante consultado (que fica no caminho da URL)
 
 ## Testes e Validação
 
@@ -311,23 +360,40 @@ def add_vote_to_tally(self, encrypted_tally: str, encrypted_vote: str) -> str:
 - **10.000 Votos**: Teste de alta carga
 - **100.000 Votos**: Teste de escalabilidade extrema
 
+### Tempos Medidos (votos persistentes por lote)
+Medidos com `pytest tests/test_stress_voting.py -s` (3 candidatos, lote de 1.000 votos, parâmetros BFV atuais), no fluxo completo de serialização e dupla contagem:
+
+| Etapa | Tempo |
+|---|---|
+| Voto: cifrar, serializar e somar ao total | 6,4 ms |
+| Fechamento de lote (soma do zero de 1.000 votos lidos em bytes) | 2,6 s por lote |
+| Apuração com dupla contagem, 1 lote / 10 lotes | 9 ms / 33 ms |
+| Requisição de voto pela API (com banco, lote de 5 nos testes) | 17,5 ms |
+| 100.000 votos só cifrados e somados em memória | 274 s |
+
+O voto que completa um lote espera o fechamento (cerca de 2,6 s com 1.000 votos), porque tudo acontece na mesma transação.
+
 ### Métricas de Performance
 - **Latência de Voto**: < 100ms por operação
 - **Throughput**: > 1000 votos/segundo
-- **Uso de Memória**: Cache FIFO com limite configurável
+- **Uso de Memória**: Votos e totais gravados como bytes no banco; sem dependência de cache
 - **Escalabilidade**: Processamento em lotes para grandes volumes
 
 ## Considerações de Implementação
 
 ### Otimizações
-- **Cache de Ciphertexts**: Gerenciamento FIFO para eficiência de memória
-- **Processamento em Lotes**: Agregação eficiente de múltiplos votos
+- **Lotes de Votos**: Votos individuais só existem até o lote fechar; depois fica um subtotal por lote
 - **Operações Assíncronas**: Não-bloqueio para alta concorrência
 
 ### Limitações
 - **Módulo de Texto Plano**: Limite de 65537 votos por candidato
 - **Profundidade Multiplicativa**: Limitação em operações complexas
-- **Tamanho de Ciphertext**: Overhead criptográfico significativo
+- **Tamanho de Ciphertext**: Overhead criptográfico significativo (cerca de 385 KiB por voto serializado)
+- **Prova ZK simulada**: `generate_zk_proof` só gera o hash de um dicionário; não prova que o voto cifrado é 1-hot
+- **Cifragem no servidor**: O backend vê o voto no momento de cifrar; cifrar no navegador (OpenFHE em WebAssembly) é trabalho futuro
+- **Chave privada única**: Quem tem acesso a `secret.key` e ao banco durante a votação poderia decifrar um voto do lote aberto; a mitigação futura é a decifragem por limiar (*threshold*), com a chave dividida entre várias pessoas
+- **Resultado unânime ou eleição muito pequena**: Revela votos pelo próprio resultado, como em qualquer eleição
+- **Horário de participação**: Votar marca `statusVotacao` e atualiza `usuarios.updated_at`, que registra quando a pessoa votou (não em quem)
 
 ## Fundamentos Teóricos
 
